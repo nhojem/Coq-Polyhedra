@@ -2607,7 +2607,7 @@ Qed.
   \codomf = f @` (S : {fset _}) :> {fset _}.
 Admitted.*)
 
-Lemma closed_by_interval (P : 'pointed[R]_n) x y :
+(* Lemma closed_by_interval (P : 'pointed[R]_n) x y :
   compact P -> x \in face_lattice P -> y \in face_lattice P -> x `<=` y ->
   exists2 Q : 'pointed[R]_n, compact Q
              & isof poly_preLattice [< x; y >]_(face_lattice P) (face_lattice Q).
@@ -2621,8 +2621,8 @@ suff h_Pt : forall (S : {finLattice poly_preLattice}) x y,
   Pt S -> Pt [< x; y >]_S.
 - apply/h_Pt => //; exists P => //; exact: isof_refl.
 - apply/(ind_id (P := Pt)). (* FIX IT *)
-  + move=> S z z_atom [Q] Q_compact /isofP [f] f_surj f_inj.
-    have /atom_face [v v_vtx fz_v]: atom (face_lattice Q) (f z)
+  + move=> S z z_atom [Q] Q_compact /isofP [f] [f_morph f_inj f_surj].
+    have /atom_face [v v_vtx fz_v]: atom (face_lattice Q) (f z).
       by rewrite fmorph_atom //; apply/misof_fmorph. (* TODO: fix *)
     case: (vertex_figure Q_compact v_vtx) => Q' Q'_compact Q'_iso.
     exists (Pointed (compact_pointed Q'_compact)) => //. (* TODO: fix it *)
@@ -2652,7 +2652,7 @@ suff h_Pt : forall (S : {finLattice poly_preLattice}) x y,
       rewrite fmorph0.
       have ->: \codom f = face_lattice Q by apply/val_inj=> //. (* TODO: fix it *)
       by rewrite fbot_face_lattice -face_lattice_of_face.
-Qed.
+Qed. *)
 
 (*
 Lemma closed_by_interval_r (x : face_lattice P) :

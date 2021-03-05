@@ -3,7 +3,7 @@ From mathcomp Require Import all_ssreflect all_algebra finmap.
 Require Import extra_misc inner_product extra_matrix xorder vector_order row_submx vector_order.
 Require Import hpolyhedron polyhedron barycenter poly_base.
 
-Require Import BinNums FMapPositive.
+Require Import BinNums FMapAVL OrderedTypeEx.
 
 Import Order.Theory.
 Import GRing.Theory Num.Theory.
@@ -14,6 +14,75 @@ Local Open Scope poly_scope.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
+
+(* Definition foo (L1 L2 : seq nat) := match L1, L2 with
+  |[::], _ => Some true
+  |_ , [::] => Some false
+  |_, _ => None
+end.
+
+Parameter L: seq nat.
+Check erefl: foo [::] L = Some true.
+Fail Check erefl: foo L [::] = Some false.
+  *)
+
+Print Module Type UsualOrderedType.
+Module Bitseq_as_UOT <: UsualOrderedType.
+Definition t := bitseq.
+Definition eq := @eq bitseq.
+Definition eq_refl := @Coq.Init.Logic.eq_refl t.
+Definition eq_sym := @Coq.Init.Logic.eq_sym t.
+Definition eq_trans := @Coq.Init.Logic.eq_trans t.
+Fixpoint bitseq_lt (x y : bitseq) : Prop := match x, y with
+  |_, [::] => False
+  |[::], _ => True
+  |true::_, false::_ => False
+  |false::_, true::_ => True
+  |_::tx, _::ty => bitseq_lt tx ty
+end.
+
+Definition lt:= bitseq_lt.
+
+Lemma lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
+Proof.
+move=> + y; elim: y => /=.
+- by case => //=; case.
+- case => /= ty IH [|[] tx] [|[] tz] //=; exact: IH.
+Qed.
+
+Lemma lt_not_eq x : forall y, lt x y -> ~ eq x y.
+Proof.
+elim: x => [|hx tx IH] [|hy ty] //=.
+by case: hx; case: hy => // /IH /eqP txnty; apply/eqP; rewrite eqseq_cons. 
+Qed.
+
+Print OrderedType.Compare.
+Fixpoint compare x y : OrderedType.Compare lt eq x y.
+Proof.
+case: x; case: y.
+- exact:OrderedType.EQ.
+- move=> ??; exact:OrderedType.LT.
+- move=> ??; exact:OrderedType.GT.
+- case => y'; case => x'.
+  + case: (compare x' y') => ?.
+    - exact:OrderedType.LT.
+    - by apply:OrderedType.EQ; rewrite/eq; congr (_ :: _).
+    - exact:OrderedType.GT.
+  + exact:OrderedType.LT.
+  + exact:OrderedType.GT.
+  + case: (compare x' y') => ?.
+    - exact:OrderedType.LT.
+    - by apply:OrderedType.EQ; rewrite/eq; congr (_ :: _).
+    - exact:OrderedType.GT.
+Defined.
+
+Lemma eq_dec x y : {(eq x y)} + {(~ eq x y)}.
+Proof. rewrite /eq; exact: (Bool.reflect_dec _ _ (@eqP _ x y)). Qed.
+
+End Bitseq_as_UOT.
+Module BitseqMap := Make(Bitseq_as_UOT).
+
+
 
 Section Misc.
 Fixpoint b_to_p (s : bitseq) : positive :=
@@ -29,7 +98,7 @@ Fixpoint p_to_b (p : positive) :=
     |xH => [::]
   end.
 
-Fixpoint map_of_bitseq_aux (s: seq bitseq) (m : PositiveMap.t nat) :=
+Fixpoint map_of_bitseq_aux (s : seq bitseq) (m : PositiveMap.t nat) :=
   if s is h::t then
     let x := (b_to_p h) in
     if PositiveMap.find x m is Some n then
@@ -93,6 +162,8 @@ Definition vtx_incident_edges (v : vertex) (E : seq edge) :=
         Some medge else aux mas t
     else None
   in map (fun mas => aux mas E) incidents.
+
+(* map of edges*)
 
 (* For each vertex v and edge list E, vtx_incident_edges v E returns a seq (option bitseq), such that (Some m) means that m is an incident edge of v, m is in E and v is one of the two vertices associated to m*)
   

@@ -80,11 +80,11 @@ Lemma eq_dec x y : {(eq x y)} + {(~ eq x y)}.
 Proof. rewrite /eq; exact: (Bool.reflect_dec _ _ (@eqP _ x y)). Qed.
 
 End Bitseq_as_UOT.
-Module BitseqMap := Make(Bitseq_as_UOT).
+Module BM := Make(Bitseq_as_UOT).
 
 
 
-Section Misc.
+(* Section Misc.
 Fixpoint b_to_p (s : bitseq) : positive :=
   if s is h::t then
     if h is true then xI (b_to_p t) 
@@ -109,7 +109,7 @@ Fixpoint map_of_bitseq_aux (s : seq bitseq) (m : PositiveMap.t nat) :=
 Definition map_of_bitseq (s : seq bitseq) :=
   map_of_bitseq_aux s (PositiveMap.empty nat).
 
-End Misc.
+End Misc. *)
 
 Section Algorithm.
 Context (L U: Type) (dft : L).
@@ -129,14 +129,14 @@ Definition mask_eq0 (m: bitseq) (x : U):=
   all (fun e => sat_eq0 e x) (mask m Po).
 
 Definition vertex := (bitseq * U)%type.
-Definition edge := (bitseq * U * bitseq * bitseq)%type.
+Record edge_d := Edge {norm : U; m1 : bitseq; m2 :bitseq}.
 
 Definition vertex_mask (v : vertex) := v.1.
 Definition vertex_point (v : vertex) := v.2.
-Definition edge_mask (e : edge) := e.1.1.1.
+(* Definition edge_mask (e : edge) := e.1.1.1.
 Definition edge_norm (e : edge) := e.1.1.2.
 Definition edge_fst (e : edge) := e.1.2.
-Definition edge_snd (e : edge) := e.2.
+Definition edge_snd (e : edge) := e.2. *)
 
 Definition mask_incident (s:bitseq) :=
   let fix aux temp cur res :=
@@ -146,29 +146,86 @@ Definition mask_incident (s:bitseq) :=
         else aux (rcons temp h) t res
     else res
   in aux [::] s [::].
+(*mask_incident s returns every mask equal to s except one true changed to false*)
 
 Fixpoint mask_cardinal (s:bitseq) :=
   if s is h::t then
     if h is true then (S (mask_cardinal t)) else mask_cardinal t
   else 0%nat.
+(*Count the number of true in a bitseq*)
 
-Definition vtx_incident_edges (v : vertex) (E : seq edge) :=
+Fixpoint eq_mask (p q : bitseq) :=
+  match p, q with
+  |hp::tp, hq::tq => eq_mask tp tq
+  |[::], [::] => true
+  |_, _ => false
+  end.
+
+Definition count_correct (m1eq m2eq : bool) (cur_state : option (option (bool * bool))) :=
+  if xorb m1eq m2eq then
+    match m1eq, m2eq, cur_state with
+    |_, _, None => Some (m1eq, m2eq)
+    |true, false, Some (Some (false, b)) => Some (true, b)
+    |false, true, Some (Some (b, false)) => Some (b, true)
+    |_, _, _ => None
+    end
+  else None.
+
+
+Definition vtx_explore (v : vertex) (E : BM.t edge_d) (res : BM.t (option (bool * bool)%type)) :=
   let: (m, _) := v in
   let incidents := mask_incident m in
-  let fix aux mas (l : seq edge) :=
-    if l is h::t then
-      let: (medge, _, medge1, medge2) := h in
-      if ((mas == medge) && (xorb (m == medge1) (m == medge2))) then
-        Some medge else aux mas t
-    else None
-  in map (fun mas => aux mas E) incidents.
+  let fix aux (masks : seq bitseq) r:=
+    if masks is h::t then
+      if BM.find h E is Some (Edge _ m1 m2) then
+        let eqm1 := eq_mask m m1 in
+        let eqm2 := eq_mask m m2 in
+        aux t (BM.add h (count_correct eqm1 eqm2 (BM.find h r)) r)
+      else BM.add h None r
+    else r
+  in aux incidents res.
+
+
+
+
+      if BM.mem h E then 
+        let: Some (Edge _ m1 m2) := BM.find h E in
+        match (eq_mask m1 m), (eq_mask m2 m) with
+          |true, false =>
+            match BM.find h r with
+              |None => aux t (BM.add h (Some (true,false)) r)
+              |Some (None) => r
+              |Some (Some (false, b)) => aux t (BM.add h (Some (true,b)) r)
+              |_ => BM.add h None r
+            end
+          |false, true => 
+            match BM.find h r with
+              |None => aux t (BM.add h (Some (false,true)) r)
+              |Some (None) => r
+              |Some (Some (b, false)) => aux t (BM.add h (Some (b,true)) r)
+              |_ => BM.add h None r
+            end
+          |_, _ => BM.add h None r
+        end
+      else BM.add h None r  
+    else r
+  in aux incidents res.
+
 
 (* map of edges*)
 
 (* For each vertex v and edge list E, vtx_incident_edges v E returns a seq (option bitseq), such that (Some m) means that m is an incident edge of v, m is in E and v is one of the two vertices associated to m*)
-  
 
-Definition bipartite (V : seq vertex) (E : seq edge) :=
+
+Definition bipartite (V : seq vertex) (E : BM.t edge_d) :=
+  let map_res := BM.empty (bool * bool)%type in
+  let aux (v : vertex) :=
+
+  in
+
+
+
+
   let incidents := map (fun v => vtx_incident_edges v E) V in
   let incident_couples := zip V incidents in
   if all (fun c => (mask_cardinal c.1.1 == size c.2) && (~~ (None \in c.2))) incident_couples then

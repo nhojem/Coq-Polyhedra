@@ -6,9 +6,9 @@ Require Import hpolyhedron polyhedron barycenter poly_base.
 Require Import BinNums FMapAVL OrderedTypeEx.
 
 Import Order.Theory.
-Import GRing.Theory Num.Theory.
+(* Import GRing.Theory Num.Theory. *)
 
-Local Open Scope ring_scope.
+(* Local Open Scope ring_scope. *)
 Local Open Scope poly_scope.
 
 Set Implicit Arguments.
@@ -154,62 +154,29 @@ Fixpoint mask_cardinal (s:bitseq) :=
   else 0%nat.
 (*Count the number of true in a bitseq*)
 
-Fixpoint eq_mask (p q : bitseq) :=
+Fixpoint eq_bitseq (p q : bitseq) :=
   match p, q with
-  |hp::tp, hq::tq => eq_mask tp tq
+  |hp::tp, hq::tq => (hp == hq) && eq_bitseq tp tq
   |[::], [::] => true
   |_, _ => false
   end.
 
-Definition count_correct (m1eq m2eq : bool) (cur_state : option (option (bool * bool))) :=
-  if xorb m1eq m2eq then
-    match m1eq, m2eq, cur_state with
-    |_, _, None => Some (m1eq, m2eq)
-    |true, false, Some (Some (false, b)) => Some (true, b)
-    |false, true, Some (Some (b, false)) => Some (b, true)
-    |_, _, _ => None
-    end
-  else None.
+Definition obind2 (A B C: Type) (f : A -> B -> option C) x y :=
+  if x is Some x then f x y else None.
 
 
-Definition vtx_explore (v : vertex) (E : BM.t edge_d) (res : BM.t (option (bool * bool)%type)) :=
-  let: (m, _) := v in
-  let incidents := mask_incident m in
-  let fix aux (masks : seq bitseq) r:=
-    if masks is h::t then
-      if BM.find h E is Some (Edge _ m1 m2) then
-        let eqm1 := eq_mask m m1 in
-        let eqm2 := eq_mask m m2 in
-        aux t (BM.add h (count_correct eqm1 eqm2 (BM.find h r)) r)
-      else BM.add h None r
-    else r
-  in aux incidents res.
-
-
-
-
-      if BM.mem h E then 
-        let: Some (Edge _ m1 m2) := BM.find h E in
-        match (eq_mask m1 m), (eq_mask m2 m) with
-          |true, false =>
-            match BM.find h r with
-              |None => aux t (BM.add h (Some (true,false)) r)
-              |Some (None) => r
-              |Some (Some (false, b)) => aux t (BM.add h (Some (true,b)) r)
-              |_ => BM.add h None r
-            end
-          |false, true => 
-            match BM.find h r with
-              |None => aux t (BM.add h (Some (false,true)) r)
-              |Some (None) => r
-              |Some (Some (b, false)) => aux t (BM.add h (Some (b,true)) r)
-              |_ => BM.add h None r
-            end
-          |_, _ => BM.add h None r
-        end
-      else BM.add h None r  
-    else r
-  in aux incidents res.
+Definition vtx_explore (E : BM.t edge_d) (res : BM.t (nat * nat)) (v : vertex) :=
+  let: (m_v, _) := v in
+  let incidents := mask_incident m_v in
+  let vtx_explore_aux res m :=
+    if BM.find m E is Some (Edge _ m1 m2) then
+      let eqm1 := eq_bitseq m m1 in
+      let eqm2 := eq_bitseq m m2 in
+      if BM.find m res is Some (n1, n2) then
+        Some (BM.add m ((n1 + eqm1), (n2 + eqm2))%N res)
+      else Some (BM.add m (nat_of_bool eqm1, nat_of_bool eqm2) res)
+    else None
+  in foldl (obind2 vtx_explore_aux) (Some res) incidents.
 
 
 (* map of edges*)
@@ -218,21 +185,10 @@ Definition vtx_explore (v : vertex) (E : BM.t edge_d) (res : BM.t (option (bool 
 
 
 Definition bipartite (V : seq vertex) (E : BM.t edge_d) :=
-  let map_res := BM.empty (bool * bool)%type in
-  let aux (v : vertex) :=
-
-  in
-
-
-
-
-  let incidents := map (fun v => vtx_incident_edges v E) V in
-  let incident_couples := zip V incidents in
-  if all (fun c => (mask_cardinal c.1.1 == size c.2) && (~~ (None \in c.2))) incident_couples then
-  (*Here, every vertex have n correct incident edges*)
-    let edges_visited := pmap id (flatten incidents) in
-    let edges_map := map_of_bitseq edges_visited in
-    all (fun c => c.2 == 2) (PositiveMap.elements edges_map) 
+  let map_res0 := BM.map (fun _ => (0, 0)%N) E in
+  let map_res := foldl (obind2 (vtx_explore E)) (Some map_res0) V in
+  if map_res is Some m then
+    BM.fold (fun ke el b => b && (el == (1, 1)%N)) m true
   else false.
 
 (* Test *)

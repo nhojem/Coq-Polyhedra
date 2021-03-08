@@ -112,7 +112,7 @@ Definition map_of_bitseq (s : seq bitseq) :=
 End Misc. *)
 
 Section Algorithm.
-Context (L U: Type) (dft : L).
+Context (n:nat) (L U: Type) (dft : L).
 (* L is the type of linear equations, U is a vector space*)
 Context (Po : seq L).
 
@@ -131,8 +131,8 @@ Definition mask_eq0 (m: bitseq) (x : U):=
 Definition vertex := (bitseq * U)%type.
 Record edge_d := Edge {norm : U; m1 : bitseq; m2 :bitseq}.
 
-Definition vertex_mask (v : vertex) := v.1.
-Definition vertex_point (v : vertex) := v.2.
+Definition vtx_mask (v : vertex) := v.1.
+Definition vtx_point (v : vertex) := v.2.
 (* Definition edge_mask (e : edge) := e.1.1.1.
 Definition edge_norm (e : edge) := e.1.1.2.
 Definition edge_fst (e : edge) := e.1.2.
@@ -161,6 +161,8 @@ Fixpoint eq_bitseq (p q : bitseq) :=
   |_, _ => false
   end.
 
+Compute (0 + eq_bitseq [:: true; false] [:: true; false])%N.
+
 Definition obind2 (A B C: Type) (f : A -> B -> option C) x y :=
   if x is Some x then f x y else None.
 
@@ -170,8 +172,8 @@ Definition vtx_explore (E : BM.t edge_d) (res : BM.t (nat * nat)) (v : vertex) :
   let incidents := mask_incident m_v in
   let vtx_explore_aux res m :=
     if BM.find m E is Some (Edge _ m1 m2) then
-      let eqm1 := eq_bitseq m m1 in
-      let eqm2 := eq_bitseq m m2 in
+      let eqm1 := eq_bitseq m_v m1 in
+      let eqm2 := eq_bitseq m_v m2 in
       if BM.find m res is Some (n1, n2) then
         Some (BM.add m ((n1 + eqm1), (n2 + eqm2))%N res)
       else Some (BM.add m (nat_of_bool eqm1, nat_of_bool eqm2) res)
@@ -228,19 +230,22 @@ Definition bipartite (V : seq vertex) (E : BM.t edge_d) :=
 chaque arête incidente est dans la liste des arêtes; et pour chacune de ces arêtes incidentes, on vérifie que le sommet est bien l'un des deux sommets associés à l'arête.
 Et chaque arête aura été visitée deux fois exactement durant le processus*)
 
-Fixpoint vtx_consistent (V : seq vertex) :=
-  if V is h::t then
-   let: (m,p) := h in
-    [&& sat_Po p, mask_eq m p & vtx_consistent t]
-  else true.
+Definition vtx_consistent (V : seq vertex) :=
+  all (fun v => [&& sat_Po (vtx_point v), mask_eq (vtx_mask v) (vtx_point v) & mask_cardinal (vtx_mask v) == n]) V.
 
-Fixpoint edge_consistent (E : seq edge) :=
-  if E is h::t then
-    let: (m,d,m1,m2) := h in
-    [&& mask_eq0 m d, ~~ mask_eq0 m1 d, ~~mask_eq0 m2 d & edge_consistent t]
-  else true.
+Fixpoint except_one (p q : bitseq) :=
+  match p, q with
+  |[::], [::] => false
+  |hp::tp, hq::tq => if (hp == hq) then except_one tp tq else eq_bitseq tp tq
+  |_, _ => false
+  end.
 
-Definition algorithm (V : seq vertex) (E : seq edge) :=
+Definition edge_consistent (E : BM.t edge_d) :=
+  BM.fold (fun m elt b => 
+    [&& b, mask_eq0 m (norm elt), ~~ mask_eq0 (m1 elt) (norm elt), ~~mask_eq0 (m2 elt) (norm elt), (mask_cardinal m == (n-1)%N), except_one m (m1 elt) & except_one m (m2 elt)])
+    E true. 
+
+Definition algorithm (V : seq vertex) (E : BM.t edge_d) :=
   [&& bipartite V E, vtx_consistent V & edge_consistent E].
 
 
@@ -250,61 +255,58 @@ Section TestCarre.
 
 Context (R := rat) (L := ((seq R) * R)%type) (U := seq R).
 
-Definition e1 : L := ([:: -1; 0], 0).
-Definition e2 : L := ([:: 1; 0], 1).
-Definition e3 : L := ([:: 0; -1], 0).
-Definition e4 : L := ([:: 0; 1], 1).
+Definition e1 : L := ([:: -1; 0], 0)%R.
+Definition e2 : L := ([:: 1; 0], 1)%R.
+Definition e3 : L := ([:: 0; -1], 0)%R.
+Definition e4 : L := ([:: 0; 1], 1)%R.
 
 Definition Po := [:: e1; e2; e3; e4].
 Definition ma1 := [:: true; false; false; false].
 Definition ma2 := [:: false; true; false; false].
 Definition ma3 := [:: false; false; true; false].
 Definition ma4 := [:: false; false; false; true].
+Definition ma13 := [:: true; false; true; false].
+Definition ma14 := [:: true; false; false; true].
+Definition ma23 := [:: false; true; true; false].
+Definition ma24 := [:: false; true; false; true].
 
-Definition d1 : U := [:: 0; 1].
-Definition d2 : U := [:: 0; -1].
-Definition d3 : U := [:: 1; 0].
-Definition d4 : U := [:: -1; 0].
+Definition d1 : U := [:: 0; 1]%R.
+Definition d2 : U := [:: 0; -1]%R.
+Definition d3 : U := [:: 1; 0]%R.
+Definition d4 : U := [:: -1; 0]%R.
 
-Definition edges : seq (edge U) :=
-    [::
-      (ma1, d1, [:: true; false; true; false], [:: true; false; false; true]);
-      (ma2, d2, [:: false; true; true; false], [:: false; true; false; true]);
-      (ma3, d3, [:: true; false; true; false], [:: false; true; true; false]);
-      (ma4, d4, [:: true; false; false; true], [:: false; true; false; true])
-  ].
+Definition edges0 := BM.empty (edge_d U).
+Definition edges1 := BM.add ma1 (Edge d1 ma13 ma14) edges0.
+Definition edges2 := BM.add ma2 (Edge d2 ma23 ma24) edges1.
+Definition edges3 := BM.add ma3 (Edge d3 ma13 ma23) edges2.
+Definition edges := BM.add ma4 (Edge d4 ma14 ma24) edges3.
 
 
-Definition v1 : vertex U :=
-  ([:: true; false; true; false], [:: 0; 0]).
-Definition v2 : vertex U :=
-  ([:: true; false; false; true], [:: 0; 1]).
-Definition v3 : vertex U :=
-  ([:: false; true; false; true], [:: 1; 1]).
-Definition v4 : vertex U :=
-  ([:: false; true; true; false], [:: 1; 0]).
+Definition v1 : vertex U := (ma13, [:: 0; 0]%R).
+Definition v2 : vertex U := (ma14, [:: 0; 1]%R).
+Definition v3 : vertex U := (ma24, [:: 1; 1]%R).
+Definition v4 : vertex U := (ma23, [:: 1; 0]%R).
 
 Definition vertices := [:: v1; v2; v3; v4].
 
-
-Fixpoint test_dot (x y : U) :=
+Fixpoint test_dot (x y : U) : R :=
   if (x, y) is (x'::tx, y'::ty) then
-    x' * y' + test_dot tx ty
-  else 0. 
+    ((x' * y') + test_dot tx ty)%R
+  else 0%R. 
 
 Definition sat_ineq (e: L) (x : U) :=
-  (test_dot e.1 x) <= e.2.
+  ((test_dot e.1 x) <= e.2)%R.
 
 Definition sat_eq (e: L) (x : U) :=
-  (test_dot e.1 x) == e.2.
+  ((test_dot e.1 x) == e.2)%R.
 
 Definition sat_eq0 (e: L) (x : U) :=
-  (test_dot e.1 x) == 0.
+  ((test_dot e.1 x) == 0)%R.
 
 Eval vm_compute in bipartite vertices edges.
-Eval vm_compute in vtx_consistent Po sat_ineq sat_eq vertices.
-Eval vm_compute in edge_consistent Po sat_eq0 edges.
-Eval vm_compute in algorithm Po sat_ineq sat_eq sat_eq0 vertices edges.
+Eval vm_compute in vtx_consistent 2%N Po sat_ineq sat_eq vertices.
+Eval vm_compute in edge_consistent 2%N Po sat_eq0 edges.
+Eval vm_compute in algorithm 2%N Po sat_ineq sat_eq sat_eq0 vertices edges.
 
 
 End TestCarre.

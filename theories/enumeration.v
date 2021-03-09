@@ -60,7 +60,7 @@ elim: x => [|hx tx IH] [|hy ty] //=.
 by case: hx; case: hy => // /IH /eqP txnty; apply/eqP; rewrite eqseq_cons. 
 Qed.
 
-Check OrderedType.LT.
+
 Program Definition compare x y : OrderedType.Compare lt eq x y :=
   match (bitseq_cmp x y) with
   |Lt => OrderedType.LT _
@@ -88,35 +88,6 @@ Proof. rewrite /eq; exact: (Bool.reflect_dec _ _ (@eqP _ x y)). Qed.
 
 End Bitseq_as_UOT.
 Module BM := Make(Bitseq_as_UOT).
-
-
-
-(* Section Misc.
-Fixpoint b_to_p (s : bitseq) : positive :=
-  if s is h::t then
-    if h is true then xI (b_to_p t) 
-    else xO (b_to_p t)
-  else xH.
-
-Fixpoint p_to_b (p : positive) :=
-  match p with
-    |xI p' => true :: (p_to_b p')
-    |xO p' => false :: (p_to_b p')
-    |xH => [::]
-  end.
-
-Fixpoint map_of_bitseq_aux (s : seq bitseq) (m : PositiveMap.t nat) :=
-  if s is h::t then
-    let x := (b_to_p h) in
-    if PositiveMap.find x m is Some n then
-      map_of_bitseq_aux t (PositiveMap.add x (S n)%nat m)
-    else map_of_bitseq_aux t (PositiveMap.add x (1%nat) m)
-  else m.
-
-Definition map_of_bitseq (s : seq bitseq) :=
-  map_of_bitseq_aux s (PositiveMap.empty nat).
-
-End Misc. *)
 
 Section Algorithm.
 Context (n:nat) (L U: Type) (dft : L).
@@ -167,8 +138,6 @@ Fixpoint eq_bitseq (p q : bitseq) :=
   |[::], [::] => true
   |_, _ => false
   end.
-
-Compute (0 + eq_bitseq [:: true; false] [:: true; false])%N.
 
 Definition obind2 (A B C: Type) (f : A -> B -> option C) x y :=
   if x is Some x then f x y else None.

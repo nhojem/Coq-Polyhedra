@@ -67,7 +67,8 @@ def neighbours(I,J):
 
 # --------------------------------------------------------------------
 def extract(name):
-    data, mx, A, b = [], [], None, None
+    """ data, mx, A, b = [], [], None, None """
+    data, mx, Po = [], [], []
 
     def _x(*path):
         return os.path.join(name, *path)
@@ -80,20 +81,38 @@ def extract(name):
     with open(name + '.ext', 'r') as stream:
         for line in stream:
             line = line.split()
-            if 'facets' not in line:
-                continue
-            line, i = line[line.index('facets')+1:], 0
-            while i < len(line):
+            if 'facets' in line:
+                line, i = line[line.index('facets')+1:], 0
+                while i < len(line):
                 if not re.match('^\d+$', line[i]):
                     break
                 i += 1
-            data.append([int(x) for x in line[:i]])
+                data.append(('base',[int(x) for x in line[:1]]))
+            elif line[0] == '1':
+                date.append(('point', list(map(fc.Fraction, line[1:])))
+            else:
+                continue
+
+
+
+
+"""  for line in stream:
+    line = line.split()
+    if 'facets' not in line:
+        continue
+    line, i = line[line.index('facets')+1:], 0
+    while i < len(line):
+        if not re.match('^\d+$', line[i]):
+            break
+        i += 1
+    data.append([int(x) for x in line[:i]]) """
 
     with open(name + '.ine', 'r') as stream:
         mx = [x.strip() for x in stream]
         mx = [x.split() for x in mx[mx.index('begin')+2:mx.index('end')]]
-        A  = [list(map(fc.Fraction, xs[1:])) for xs in mx]
-        b  = [-int(xs[0]) for xs in mx]
+        Po = [list(map(fc.Fraction, xs)) for xs in mx]
+        """ A  = [list(map(fc.Fraction, xs[1:])) for xs in mx]
+        b  = [-int(xs[0]) for xs in mx] """
 
     with open(_x('%s_ine.v' % (FNAME,)), 'w') as stream:
         print(PRELUDE_INE, file=stream)

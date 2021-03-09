@@ -33,13 +33,17 @@ Definition eq := @eq bitseq.
 Definition eq_refl := @Coq.Init.Logic.eq_refl t.
 Definition eq_sym := @Coq.Init.Logic.eq_sym t.
 Definition eq_trans := @Coq.Init.Logic.eq_trans t.
-Fixpoint bitseq_lt (x y : bitseq) : Prop := match x, y with
-  |_, [::] => False
-  |[::], _ => True
-  |true::_, false::_ => False
-  |false::_, true::_ => True
-  |_::tx, _::ty => bitseq_lt tx ty
-end.
+Fixpoint bitseq_cmp (x y : bitseq) : comparison :=
+  match x, y with
+  |[::], [::] => Eq
+  |[::], _ => Lt
+  |_, [::] => Gt
+  |true::_, false::_ => Gt
+  |false::_, true::_ => Lt
+  |_::tx, _::ty => bitseq_cmp tx ty
+  end.
+
+Definition bitseq_lt (x y: bitseq) : Prop := (bitseq_cmp x y) = Lt.
 
 Definition lt:= bitseq_lt.
 
@@ -56,25 +60,28 @@ elim: x => [|hx tx IH] [|hy ty] //=.
 by case: hx; case: hy => // /IH /eqP txnty; apply/eqP; rewrite eqseq_cons. 
 Qed.
 
-Print OrderedType.Compare.
-Fixpoint compare x y : OrderedType.Compare lt eq x y.
-Proof.
-case: x; case: y.
-- exact:OrderedType.EQ.
-- move=> ??; exact:OrderedType.LT.
-- move=> ??; exact:OrderedType.GT.
-- case => y'; case => x'.
-  + case: (compare x' y') => ?.
-    - exact:OrderedType.LT.
-    - by apply:OrderedType.EQ; rewrite/eq; congr (_ :: _).
-    - exact:OrderedType.GT.
-  + exact:OrderedType.LT.
-  + exact:OrderedType.GT.
-  + case: (compare x' y') => ?.
-    - exact:OrderedType.LT.
-    - by apply:OrderedType.EQ; rewrite/eq; congr (_ :: _).
-    - exact:OrderedType.GT.
-Defined.
+Check OrderedType.LT.
+Program Definition compare x y : OrderedType.Compare lt eq x y :=
+  match (bitseq_cmp x y) with
+  |Lt => OrderedType.LT _
+  |Eq => OrderedType.EQ _
+  |Gt => OrderedType.GT _
+  end.
+
+
+Next Obligation. by []. Qed.
+Next Obligation.
+move: y Heq_anonymous; elim: x => [|hx tx IH]. 
+- by case.
+- by case => [|hy ty]; case: hx => //; case: hy => //= /IH ?; congr (_ :: _).
+Qed.
+Next Obligation.
+move: y Heq_anonymous; elim x => [|hx tx IH].
+- by case.
+- by case => // hy ty; case: hx; case: hy => //= /IH;
+  rewrite /lt /bitseq_lt /=.
+Qed.
+
 
 Lemma eq_dec x y : {(eq x y)} + {(~ eq x y)}.
 Proof. rewrite /eq; exact: (Bool.reflect_dec _ _ (@eqP _ x y)). Qed.
@@ -190,7 +197,7 @@ Definition bipartite (V : seq vertex) (E : BM.t edge_d) :=
   let map_res0 := BM.map (fun _ => (0, 0)%N) E in
   let map_res := foldl (obind2 (vtx_explore E)) (Some map_res0) V in
   if map_res is Some m then
-    BM.fold (fun ke el b => b && (el == (1, 1)%N)) m true
+    BM.fold (fun _ el b => b && (el == (1, 1)%N)) m true
   else false.
 
 (* Test *)

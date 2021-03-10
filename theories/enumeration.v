@@ -2,8 +2,8 @@ Require Import Recdef.
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 Require Import extra_misc inner_product extra_matrix xorder vector_order row_submx vector_order.
 Require Import hpolyhedron polyhedron barycenter poly_base.
-
 Require Import BinNums FMapAVL OrderedTypeEx.
+From Bignums Require Import BigQ.
 
 Import Order.Theory.
 (* Import GRing.Theory Num.Theory. *)
@@ -90,7 +90,7 @@ End Bitseq_as_UOT.
 Module BM := Make(Bitseq_as_UOT).
 
 Section Algorithm.
-Context (n:nat) (L U: Type) (dft : L).
+Context (n:nat) (U L: Type).
 (* L is the type of linear equations, U is a vector space*)
 Context (Po : seq L).
 
@@ -101,8 +101,6 @@ Definition sat_Po (x : U) :=
   all (fun e => sat_ineq e x) Po.
 Definition mask_eq (m : bitseq) (x : U):=
   all (fun e => sat_eq e x) (mask m Po).
-Definition nth_eq0 (m : nat) (x : U) :=
-  sat_eq0 (nth dft Po m) x.
 Definition mask_eq0 (m: bitseq) (x : U):=
   all (fun e => sat_eq0 e x) (mask m Po).
 
@@ -227,62 +225,94 @@ Definition algorithm (V : seq vertex) (E : BM.t edge_d) :=
 
 End Algorithm.
 
-Section TestCarre.
+(* Section TestCarre.
 
-Context (R := rat) (L := ((seq R) * R)%type) (U := seq R).
+  Context (R := rat) (L := ((seq R) * R)%type) (U := seq R).
 
-Definition e1 : L := ([:: -1; 0], 0)%R.
-Definition e2 : L := ([:: 1; 0], 1)%R.
-Definition e3 : L := ([:: 0; -1], 0)%R.
-Definition e4 : L := ([:: 0; 1], 1)%R.
+  Definition e1 : L := ([:: -1; 0], 0)%R.
+  Definition e2 : L := ([:: 1; 0], 1)%R.
+  Definition e3 : L := ([:: 0; -1], 0)%R.
+  Definition e4 : L := ([:: 0; 1], 1)%R.
 
-Definition Po := [:: e1; e2; e3; e4].
-Definition ma1 := [:: true; false; false; false].
-Definition ma2 := [:: false; true; false; false].
-Definition ma3 := [:: false; false; true; false].
-Definition ma4 := [:: false; false; false; true].
-Definition ma13 := [:: true; false; true; false].
-Definition ma14 := [:: true; false; false; true].
-Definition ma23 := [:: false; true; true; false].
-Definition ma24 := [:: false; true; false; true].
+  Definition Po := [:: e1; e2; e3; e4].
+  Definition ma1 := [:: true; false; false; false].
+  Definition ma2 := [:: false; true; false; false].
+  Definition ma3 := [:: false; false; true; false].
+  Definition ma4 := [:: false; false; false; true].
+  Definition ma13 := [:: true; false; true; false].
+  Definition ma14 := [:: true; false; false; true].
+  Definition ma23 := [:: false; true; true; false].
+  Definition ma24 := [:: false; true; false; true].
 
-Definition d1 : U := [:: 0; 1]%R.
-Definition d2 : U := [:: 0; -1]%R.
-Definition d3 : U := [:: 1; 0]%R.
-Definition d4 : U := [:: -1; 0]%R.
+  Definition d1 : U := [:: 0; 1]%R.
+  Definition d2 : U := [:: 0; -1]%R.
+  Definition d3 : U := [:: 1; 0]%R.
+  Definition d4 : U := [:: -1; 0]%R.
 
-Definition edges0 := BM.empty (edge_d U).
-Definition edges1 := BM.add ma1 (Edge d1 ma13 ma14) edges0.
-Definition edges2 := BM.add ma2 (Edge d2 ma23 ma24) edges1.
-Definition edges3 := BM.add ma3 (Edge d3 ma13 ma23) edges2.
-Definition edges := BM.add ma4 (Edge d4 ma14 ma24) edges3.
-
-
-Definition v1 : vertex U := (ma13, [:: 0; 0]%R).
-Definition v2 : vertex U := (ma14, [:: 0; 1]%R).
-Definition v3 : vertex U := (ma24, [:: 1; 1]%R).
-Definition v4 : vertex U := (ma23, [:: 1; 0]%R).
-
-Definition vertices := [:: v1; v2; v3; v4].
-
-Fixpoint test_dot (x y : U) : R :=
-  if (x, y) is (x'::tx, y'::ty) then
-    ((x' * y') + test_dot tx ty)%R
-  else 0%R. 
-
-Definition sat_ineq (e: L) (x : U) :=
-  ((test_dot e.1 x) <= e.2)%R.
-
-Definition sat_eq (e: L) (x : U) :=
-  ((test_dot e.1 x) == e.2)%R.
-
-Definition sat_eq0 (e: L) (x : U) :=
-  ((test_dot e.1 x) == 0)%R.
-
-Eval vm_compute in bipartite vertices edges.
-Eval vm_compute in vtx_consistent 2%N Po sat_ineq sat_eq vertices.
-Eval vm_compute in edge_consistent 2%N Po sat_eq0 edges.
-Eval vm_compute in algorithm 2%N Po sat_ineq sat_eq sat_eq0 vertices edges.
+  Definition edges0 := BM.empty (edge_d U).
+  Definition edges1 := BM.add ma1 (Edge d1 ma13 ma14) edges0.
+  Definition edges2 := BM.add ma2 (Edge d2 ma23 ma24) edges1.
+  Definition edges3 := BM.add ma3 (Edge d3 ma13 ma23) edges2.
+  Definition edges := BM.add ma4 (Edge d4 ma14 ma24) edges3.
 
 
-End TestCarre.
+  Definition v1 : vertex U := (ma13, [:: 0; 0]%R).
+  Definition v2 : vertex U := (ma14, [:: 0; 1]%R).
+  Definition v3 : vertex U := (ma24, [:: 1; 1]%R).
+  Definition v4 : vertex U := (ma23, [:: 1; 0]%R).
+
+  Definition vertices := [:: v1; v2; v3; v4].
+
+  Fixpoint test_dot (x y : U) : R :=
+    if (x, y) is (x'::tx, y'::ty) then
+      ((x' * y') + test_dot tx ty)%R
+    else 0%R. 
+
+  Definition sat_ineq (e: L) (x : U) :=
+    ((test_dot e.1 x) <= e.2)%R.
+
+  Definition sat_eq (e: L) (x : U) :=
+    ((test_dot e.1 x) == e.2)%R.
+
+  Definition sat_eq0 (e: L) (x : U) :=
+    ((test_dot e.1 x) == 0)%R.
+
+  Eval vm_compute in bipartite vertices edges.
+  Eval vm_compute in vtx_consistent 2%N Po sat_ineq sat_eq vertices.
+  Eval vm_compute in edge_consistent 2%N Po sat_eq0 edges.
+  Eval vm_compute in algorithm 2%N Po sat_ineq sat_eq sat_eq0 vertices edges.
+
+
+End TestCarre. *)
+
+
+Section BigQ_algorithm.
+Context (R := bigQ) (U := seq bigQ) (L := seq bigQ).
+(*e : L is a list denoting a linear relation, s.t h::t corresponds to <t,x> >= h *)
+
+Definition bigQ_dot (x y : U) : R :=
+  let aux := (fun res p => BigQ.add_norm res (BigQ.mul_norm p.1 p.2)) in
+  foldl aux 0%bigQ (zip x y).
+
+Definition bigQ_sat_ineq (e : L) (x : U) :=
+  if e is h::t then
+    let r := (bigQ_dot t x) in
+    if (r ?= h)%bigQ is Gt then true else false
+  else false.
+
+Definition bigQ_sat_eq (e : L) (x : U) :=
+  if e is h::t then
+    let r := (bigQ_dot t x) in
+    if (r ?= h)%bigQ is Eq then true else false
+  else false.
+
+Definition bigQ_sat_eq0 (e : L) (x : U) :=
+  if e is h::t then
+    let r := (bigQ_dot t x) in
+    if (r ?= 0)%bigQ is Eq then true else false
+  else false.
+
+
+
+
+End BigQ_algorithm.

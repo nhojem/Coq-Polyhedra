@@ -121,16 +121,17 @@ def edges_gen(vertices, Po):
             edge = base[:]
             edge.remove(n)
             if tuple(edge) in edges:
-                d, vertex1 = edges(tuple(edge))
+                d, vertex1 = edges[tuple(edge)]
                 yield (edge, d, vertex1, base)
             else:
                 d = vect_kernel([Po[i-1][1:] for i in edge])
                 edges[tuple(edge)] = (d, base)
+    return None
 
 
 def output(name, Po, vertices):
     m = len(Po)
-    n = len(Po[0])
+    n = len(Po[0])-1
     
     def _x(*path):
         return os.path.join(name, *path)
@@ -154,10 +155,10 @@ def output(name, Po, vertices):
 
     i = 0
     while i < len(vertices):
-        index = i // CHUNK; j = 0; fname = '%s_%.4d' % (FNAME, index)
+        index_v = i // CHUNK; j = 0; fname = '%s_%.4d' % (FNAME, index_v)
         with open(_x('v_' + fname + '.v'), 'w') as stream:
             print(PRELUDE_EXT, file=stream)
-            print(f'Definition {fname} : seq (bitseq * (seq bigQ)) := [::', file=stream)
+            print(f'Definition v_{fname} : seq (bitseq * (seq bigQ)) := [::', file=stream)
             while i < len(vertices) and j < CHUNK:
                 sep  = ' ' if j == 0 else ';'
                 line = '; '.join(map(str, mask_gen(m, vertices[i][0])))
@@ -165,40 +166,87 @@ def output(name, Po, vertices):
                 print(f'{sep}  ([:: {line}], [:: {line2}])', file=stream)
                 i += 1; j += 1
             print('].', file=stream)
-        
-        """ with open(_x('job_' + fname + '.v'), 'w') as stream:
-            stream.write(JOB.format(name = fname)) """
+    
+    i = 0
+    edges = edges_gen(vertices, Po)
+    while i < (len(vertices) * n / 2):
+        index_e = i // CHUNK; j = 0; fname = '%s_%.4d' % (FNAME, index_e)
+        with open(_x('e_' + fname + '.v'), 'w') as stream:
+            print(PRELUDE_EXT, file=stream)
+            print(f'Definition e_{fname} : seq (bitseq * (seq bigQ) * bitseq * bitseq) := [::', file=stream)
+            while i < (len(vertices) * n / 2) and j < CHUNK:
+                edge, d, base1, base2 = next(edges)
+                sep = ' ' if j == 0 else ';'
+                line = '; '.join(map(str, mask_gen(m, edge)))
+                line2 = '; '.join(map(str, d))
+                line3 = '; '.join(map(str, mask_gen(m, base1)))
+                line4 = '; '.join(map(str, mask_gen(m, base2)))
+                print(f'{sep} ([:: {line}], [:: {line2}], [:: {line3}], [:: {line4}])', file=stream)
+                i += 1; j += 1
+            print('].', file=stream)
 
-    """TODO : use edges_gen to generate .v file"""
-    """ with open(_x('job_' + FNAME + '.v'), 'w') as stream:
+    with open(_x('list_' + FNAME), 'w') as stream:
         print(PRELUDE_EXT, file=stream)
-        for i in range(index+1):
-            print('Require job_%s_%.4d.' % (FNAME, i), file=stream)
+        for t in range(index_v + 1):
+            fname = '%s_%.4d' % (FNAME, t)
+            print(f'Require Import v_{fname}',file=stream)
+        for t in range(index_e + 1):
+            fname = '%s_%.4d' % (FNAME, t)
+            print(f'Require Import e_{fname}',file=stream)
         print(file=stream)
-        print('Definition the_big_and : bool := Eval vm_compute in (', file=stream)
-        for i in range(index+1):
-            sep = '  ' if i == 0 else '&&'
-            print('  %s  job_%s_%.4d.output' % (sep, FNAME, i), file=stream)
-        print(').', file=stream)
+        print('Definition v_list : seq (bitseq * (seq bigQ)) := Eval vm_compute in ')
+        for t in range(index_v + 1):
+            fname = '%s_%.4d' % (FNAME, t)
+            sep = ' ' if t == 0 else '++'
+            print(f'{sep} v_{fname}', file=stream)
+        print('.', file=stream)
+        print(file=stream)
+        print ('Definition e_list : seq (bitseq * (seq bigQ) * bitseq * bitseq) := Eval vm_compute in')
+        for t in range(index_e + 1):
+            fname = '%s_%.4d' % (FNAME, t)
+            sep = ' ' if t == 0 else '++'
+            print(f'{sep} v_{fname}', file=stream)
+        print('.', file=stream)
 
-    shutil.copy2(os.path.join(ROOT, 'efficient_matrix.v'), name)
 
-    with open(_x('_CoqProject'), 'w') as stream:
-        print(COQPROJECT_PRELUDE, file=stream)
-        print('efficient_matrix.v', file=stream)
-        print('%s_ine.v' % (FNAME,), file=stream)
-        for i in range(index+1):
-            print('%s_%.4d.v' % (FNAME, i), file=stream)
-        for i in range(index+1):
-            print('job_%s_%.4d.v' % (FNAME, i), file=stream)
-        print('job_' + FNAME + '.v', file=stream)
 
-    sp.check_call(
-        'coq_makefile -f _CoqProject -o Makefile'.split(),
-        cwd = name
-    )
 
-    print(f'>>> make TIMED=1 -C {name}') """
+
+    
+        
+""" with open(_x('job_' + fname + '.v'), 'w') as stream:
+    stream.write(JOB.format(name = fname)) """
+
+
+""" with open(_x('job_' + FNAME + '.v'), 'w') as stream:
+    print(PRELUDE_EXT, file=stream)
+    for i in range(index+1):
+        print('Require job_%s_%.4d.' % (FNAME, i), file=stream)
+    print(file=stream)
+    print('Definition the_big_and : bool := Eval vm_compute in (', file=stream)
+    for i in range(index+1):
+        sep = '  ' if i == 0 else '&&'
+        print('  %s  job_%s_%.4d.output' % (sep, FNAME, i), file=stream)
+    print(').', file=stream)
+
+shutil.copy2(os.path.join(ROOT, 'efficient_matrix.v'), name)
+
+with open(_x('_CoqProject'), 'w') as stream:
+    print(COQPROJECT_PRELUDE, file=stream)
+    print('efficient_matrix.v', file=stream)
+    print('%s_ine.v' % (FNAME,), file=stream)
+    for i in range(index+1):
+        print('%s_%.4d.v' % (FNAME, i), file=stream)
+    for i in range(index+1):
+        print('job_%s_%.4d.v' % (FNAME, i), file=stream)
+    print('job_' + FNAME + '.v', file=stream)
+
+sp.check_call(
+    'coq_makefile -f _CoqProject -o Makefile'.split(),
+    cwd = name
+)
+
+print(f'>>> make TIMED=1 -C {name}') """
 # --------------------------------------------------------------------
 def _main():
     for i in sys.argv[1:]:

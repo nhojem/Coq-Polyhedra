@@ -1,7 +1,7 @@
 Require Import Recdef.
 From mathcomp Require Import all_ssreflect all_algebra finmap.
-Require Import extra_misc inner_product extra_matrix xorder vector_order row_submx vector_order.
-Require Import hpolyhedron polyhedron barycenter poly_base.
+(* Require Import extra_misc inner_product extra_matrix xorder vector_order row_submx vector_order.
+Require Import hpolyhedron polyhedron barycenter poly_base. *)
 Require Import BinNums FMapAVL OrderedTypeEx.
 From Bignums Require Import BigQ.
 
@@ -9,7 +9,7 @@ Import Order.Theory.
 (* Import GRing.Theory Num.Theory. *)
 
 (* Local Open Scope ring_scope. *)
-Local Open Scope poly_scope.
+(* Local Open Scope poly_scope. *)
 
 Set Implicit Arguments.
 Unset Strict Implicit.

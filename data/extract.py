@@ -185,27 +185,27 @@ def output(name, Po, vertices):
                 i += 1; j += 1
             print('].', file=stream)
 
-    with open(_x('list_' + FNAME), 'w') as stream:
+    with open(_x('list_' + FNAME + '.v'), 'w') as stream:
         print(PRELUDE_EXT, file=stream)
         for t in range(index_v + 1):
             fname = '%s_%.4d' % (FNAME, t)
-            print(f'Require Import v_{fname}',file=stream)
+            print(f'Require Import v_{fname}.',file=stream)
         for t in range(index_e + 1):
             fname = '%s_%.4d' % (FNAME, t)
-            print(f'Require Import e_{fname}',file=stream)
+            print(f'Require Import e_{fname}.',file=stream)
         print(file=stream)
-        print('Definition v_list : seq (bitseq * (seq bigQ)) := Eval vm_compute in ')
+        print('Definition v_list : seq (bitseq * (seq bigQ)) := Eval vm_compute in ', file=stream)
         for t in range(index_v + 1):
             fname = '%s_%.4d' % (FNAME, t)
             sep = ' ' if t == 0 else '++'
             print(f'{sep} v_{fname}', file=stream)
         print('.', file=stream)
         print(file=stream)
-        print ('Definition e_list : seq (bitseq * (seq bigQ) * bitseq * bitseq) := Eval vm_compute in')
+        print ('Definition e_list : seq (bitseq * (seq bigQ) * bitseq * bitseq) := Eval vm_compute in', file=stream)
         for t in range(index_e + 1):
             fname = '%s_%.4d' % (FNAME, t)
             sep = ' ' if t == 0 else '++'
-            print(f'{sep} v_{fname}', file=stream)
+            print(f'{sep} e_{fname}', file=stream)
         print('.', file=stream)
 
 

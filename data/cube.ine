@@ -1,0 +1,13 @@
+cube
+H-representation
+begin
+6 4 rational
+ 1  1  0  0 
+ 1  0  1  0 
+ 1  0  0  1 
+ 1 -1  0  0 
+ 1  0  0 -1 
+ 1  0 -1  0 
+end
+allbases
+printcobasis

@@ -38,16 +38,16 @@ Unset Printing Implicit Defensive.
 JOB = r'''
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq.
 From Bignums  Require Import BigQ BigN.
-(* ------- *) Require Import efficient_matrix.
+(* ------- *) Require Import enumeration.
 
 Set   Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import data_ine {name}.
+Require Import data_ine list_data.
 
 Definition output :=
-  Eval native_compute in fast_all (check_basis m n A b) {name}.
+  Eval native_compute in bigQ_algorithm n Po v_list (seq_to_map e_list).
 '''.lstrip()
 
 COQPROJECT_PRELUDE = r'''
@@ -208,14 +208,30 @@ def output(name, Po, vertices):
             print(f'{sep} e_{fname}', file=stream)
         print('.', file=stream)
 
+    with open(_x('job.v'), 'w') as stream:
+        stream.write(JOB)
 
+    shutil.copy2(os.path.join(ROOT, 'enumeration.v'), name)
 
+    with open(_x('_CoqProject'), 'w') as stream:
+        print(COQPROJECT_PRELUDE, file=stream)
+        print('enumeration.v', file=stream)
+        print('%s_ine.v' % (FNAME,), file=stream)
+        for t in range(index_v + 1):
+            fname = '%s_%.4d' % (FNAME, t)
+            print(f'v_{fname}.v',file=stream)
+        for t in range(index_e + 1):
+            fname = '%s_%.4d' % (FNAME, t)
+            print(f'e_{fname}.v',file=stream)
+        print('list_' + FNAME +'.v', file=stream)
+        print('job.v', file=stream)
 
+    sp.check_call(
+        'coq_makefile -f _CoqProject -o Makefile'.split(),
+        cwd = name
+    )
 
-    
-        
-""" with open(_x('job_' + fname + '.v'), 'w') as stream:
-    stream.write(JOB.format(name = fname)) """
+    print(f'>>> make TIMED=1 -C {name}')
 
 
 """ with open(_x('job_' + FNAME + '.v'), 'w') as stream:
@@ -228,25 +244,8 @@ def output(name, Po, vertices):
         sep = '  ' if i == 0 else '&&'
         print('  %s  job_%s_%.4d.output' % (sep, FNAME, i), file=stream)
     print(').', file=stream)
+"""
 
-shutil.copy2(os.path.join(ROOT, 'efficient_matrix.v'), name)
-
-with open(_x('_CoqProject'), 'w') as stream:
-    print(COQPROJECT_PRELUDE, file=stream)
-    print('efficient_matrix.v', file=stream)
-    print('%s_ine.v' % (FNAME,), file=stream)
-    for i in range(index+1):
-        print('%s_%.4d.v' % (FNAME, i), file=stream)
-    for i in range(index+1):
-        print('job_%s_%.4d.v' % (FNAME, i), file=stream)
-    print('job_' + FNAME + '.v', file=stream)
-
-sp.check_call(
-    'coq_makefile -f _CoqProject -o Makefile'.split(),
-    cwd = name
-)
-
-print(f'>>> make TIMED=1 -C {name}') """
 # --------------------------------------------------------------------
 def _main():
     for i in sys.argv[1:]:

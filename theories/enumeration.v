@@ -26,7 +26,6 @@ Check erefl: foo [::] L = Some true.
 Fail Check erefl: foo L [::] = Some false.
   *)
 
-Print Module Type UsualOrderedType.
 Module Bitseq_as_UOT <: UsualOrderedType.
 Definition t := bitseq.
 Definition eq := @eq bitseq.
@@ -312,7 +311,19 @@ Definition bigQ_sat_eq0 (e : L) (x : U) :=
     if (r ?= 0)%bigQ is Eq then true else false
   else false.
 
-
+Definition bigQ_algorithm := fun n Po => @algorithm n U L Po bigQ_sat_ineq bigQ_sat_eq bigQ_sat_eq0.
 
 
 End BigQ_algorithm.
+
+Section BigQ_misc.
+
+
+Definition seq_to_map (L : seq (bitseq * (seq bigQ) * bitseq * bitseq)) :=
+  foldr
+  (fun x m => let: (key, norm, v1, v2) := x in (BM.add key (Edge norm v1 v2) m))
+  (BM.empty (edge_d _)) L.
+  
+
+
+End BigQ_misc.

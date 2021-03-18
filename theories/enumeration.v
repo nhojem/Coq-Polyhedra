@@ -296,13 +296,17 @@ Definition bigQ_dot (x y : U) : R :=
 Definition bigQ_sat_ineq (e : L) (x : U) :=
   if e is h::t then
     let r := (bigQ_dot t x) in
-    if (r ?= h)%bigQ is Gt then true else false
+    match (r ?= -h)%bigQ with
+    |Gt => true
+    |Eq => true
+    |Lt => true
+    end
   else false.
 
 Definition bigQ_sat_eq (e : L) (x : U) :=
   if e is h::t then
     let r := (bigQ_dot t x) in
-    if (r ?= h)%bigQ is Eq then true else false
+    if (r ?= (- h))%bigQ is Eq then true else false
   else false.
 
 Definition bigQ_sat_eq0 (e : L) (x : U) :=
@@ -327,3 +331,59 @@ Definition seq_to_map (L : seq (bitseq * (seq bigQ) * bitseq * bitseq)) :=
 
 
 End BigQ_misc.
+
+(* Section TestExtract.
+
+Local Open Scope bigQ_scope.
+
+Definition Po: seq (seq bigQ) := [::
+   [:: 1; 1; 0; 0]
+;  [:: 1; 0; 1; 0]
+;  [:: 1; 0; 0; 1]
+;  [:: 1; -1; 0; 0]
+;  [:: 1; 0; 0; -1]
+;  [:: 1; 0; -1; 0]
+].
+
+Definition n : nat := 3.
+
+Definition v_data_0000 : seq (bitseq * (seq bigQ)) := [::
+   ([:: false; false; false; true; true; true], [:: 1; 1; 1])
+;  ([:: true; false; false; false; true; true], [:: -1; 1; 1])
+;  ([:: false; false; true; true; false; true], [:: 1; 1; -1])
+;  ([:: true; false; true; false; false; true], [:: -1; 1; -1])
+;  ([:: false; true; true; true; false; false], [:: 1; -1; -1])
+;  ([:: true; true; true; false; false; false], [:: -1; -1; -1])
+;  ([:: false; true; false; true; true; false], [:: 1; -1; 1])
+;  ([:: true; true; false; false; true; false], [:: -1; -1; 1])
+].
+
+Definition e_data_0000 : seq (bitseq * (seq bigQ) * bitseq * bitseq) := [::
+  ([:: false; false; false; false; true; true], [:: 1; 0; 0], [:: false; false; false; true; true; true], [:: true; false; false; false; true; true])
+; ([:: false; false; false; true; false; true], [:: 0; 0; 1], [:: false; false; false; true; true; true], [:: false; false; true; true; false; true])
+; ([:: false; false; true; false; false; true], [:: 1; 0; 0], [:: false; false; true; true; false; true], [:: true; false; true; false; false; true])
+; ([:: true; false; false; false; false; true], [:: 0; 0; 1], [:: true; false; false; false; true; true], [:: true; false; true; false; false; true])
+; ([:: false; false; true; true; false; false], [:: 0; 1; 0], [:: false; false; true; true; false; true], [:: false; true; true; true; false; false])
+; ([:: false; true; true; false; false; false], [:: 1; 0; 0], [:: false; true; true; true; false; false], [:: true; true; true; false; false; false])
+; ([:: true; false; true; false; false; false], [:: 0; 1; 0], [:: true; false; true; false; false; true], [:: true; true; true; false; false; false])
+; ([:: false; false; false; true; true; false], [:: 0; 1; 0], [:: false; false; false; true; true; true], [:: false; true; false; true; true; false])
+; ([:: false; true; false; true; false; false], [:: 0; 0; 1], [:: false; true; true; true; false; false], [:: false; true; false; true; true; false])
+; ([:: false; true; false; false; true; false], [:: 1; 0; 0], [:: false; true; false; true; true; false], [:: true; true; false; false; true; false])
+; ([:: true; false; false; false; true; false], [:: 0; 1; 0], [:: true; false; false; false; true; true], [:: true; true; false; false; true; false])
+; ([:: true; true; false; false; false; false], [:: 0; 0; 1], [:: true; true; true; false; false; false], [:: true; true; false; false; true; false])
+].
+
+Definition v_list : seq (bitseq * (seq bigQ)) := Eval vm_compute in 
+  v_data_0000
+.
+
+Definition e_list : seq (bitseq * (seq bigQ) * bitseq * bitseq) := Eval vm_compute in
+  e_data_0000
+.
+
+Definition output :=
+  Eval native_compute in bigQ_algorithm n Po v_list (seq_to_map e_list).
+
+Print output.
+
+End TestExtract. *)

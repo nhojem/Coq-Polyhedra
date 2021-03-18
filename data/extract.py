@@ -48,6 +48,8 @@ Require Import data_ine list_data.
 
 Definition output :=
   Eval native_compute in bigQ_algorithm n Po v_list (seq_to_map e_list).
+
+Print output.
 '''.lstrip()
 
 COQPROJECT_PRELUDE = r'''

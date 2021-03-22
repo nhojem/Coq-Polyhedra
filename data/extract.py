@@ -35,7 +35,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 '''.lstrip()
 
-JOB = r'''
+BI_JOB = r'''
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq.
 From Bignums  Require Import BigQ BigN.
 (* ------- *) Require Import enumeration.
@@ -47,9 +47,21 @@ Unset Printing Implicit Defensive.
 Require Import data_ine list_data.
 
 Definition output :=
-  Eval native_compute in bigQ_algorithm n Po v_list (seq_to_map e_list).
+  Eval native_compute in bigQ_bipartite v_list (seq_to_map e_list).
 
 Print output.
+'''.lstrip()
+
+JOB_DATA = r'''
+From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq.
+From Bignums  Require Import BigQ BigN.
+(* ------- *) Require Import enumeration.
+
+Set   Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
+Require Import data_ine.
+
 '''.lstrip()
 
 COQPROJECT_PRELUDE = r'''
@@ -117,7 +129,6 @@ def extract(name):
 
 def edges_gen(vertices, Po):
     edges = {}
-    v = len(vertices)
     for (base, _) in vertices:
         for n in base:
             edge = base[:]
@@ -187,6 +198,22 @@ def output(name, Po, vertices):
                 i += 1; j += 1
             print('].', file=stream)
 
+    for i in range(index_v + 1):
+        fname = '%s_%.4d' % (FNAME, i)
+        with open(_x('job_v_' + fname + '.v'), 'w') as stream:
+            print(JOB_DATA, file=stream)
+            print(f'Require Import v_{fname}.', file=stream)
+            print(f'Definition output := Eval native_compute in bigQ_vtx_consistent n Po v_{fname}.', file=stream)
+            print('Print output.', file=stream)
+    
+    for i in range(index_e + 1):
+        fname = '%s_%.4d' % (FNAME, i)
+        with open(_x('job_e_' + fname + '.v'), 'w') as stream:
+            print(JOB_DATA, file=stream)
+            print(f'Require Import e_{fname}.', file=stream)
+            print(f'Definition output := Eval native_compute in bigQ_edge_consistent n Po (seq_to_map e_{fname}).', file=stream)
+            print('Print output.', file=stream)
+
     with open(_x('list_' + FNAME + '.v'), 'w') as stream:
         print(PRELUDE_EXT, file=stream)
         for t in range(index_v + 1):
@@ -210,8 +237,8 @@ def output(name, Po, vertices):
             print(f'{sep} e_{fname}', file=stream)
         print('.', file=stream)
 
-    with open(_x('job.v'), 'w') as stream:
-        stream.write(JOB)
+    with open(_x('bi_job.v'), 'w') as stream:
+        stream.write(BI_JOB)
 
     shutil.copy2(os.path.join(ROOT, 'enumeration.v'), name)
 
@@ -222,11 +249,13 @@ def output(name, Po, vertices):
         for t in range(index_v + 1):
             fname = '%s_%.4d' % (FNAME, t)
             print(f'v_{fname}.v',file=stream)
+            print(f'job_v_{fname}.v', file=stream)
         for t in range(index_e + 1):
             fname = '%s_%.4d' % (FNAME, t)
             print(f'e_{fname}.v',file=stream)
+            print(f'job_e_{fname}.v', file=stream)
         print('list_' + FNAME +'.v', file=stream)
-        print('job.v', file=stream)
+        print('bi_job.v', file=stream)
 
     sp.check_call(
         'coq_makefile -f _CoqProject -o Makefile'.split(),

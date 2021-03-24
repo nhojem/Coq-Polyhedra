@@ -66,6 +66,9 @@ Definition mem_edge v1 v2 (G : t) :=
 
 Definition find_vertex v (G : t) := Map.find v G.
 
+Definition graph_fold (A : Type) f (G : t) (a : A) :=
+  Map.fold f G a. 
+
 End Defs.
 
 Section Predicates.
@@ -83,4 +86,5 @@ Qed.
 
 End Predicates.
 End Graph.
+
 

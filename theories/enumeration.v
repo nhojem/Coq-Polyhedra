@@ -2,8 +2,10 @@ Require Import Recdef.
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 (* Require Import extra_misc inner_product extra_matrix xorder vector_order row_submx vector_order.
 Require Import hpolyhedron polyhedron barycenter poly_base. *)
-Require Import BinNums FMapAVL OrderedTypeEx.
+Require BinNums FMapAVL FSetAVL.
+Require Import OrderedTypeEx.
 From Bignums Require Import BigQ.
+Require Import graph.
 
 Import Order.Theory.
 (* Import GRing.Theory Num.Theory. *)
@@ -86,33 +88,81 @@ Lemma eq_dec x y : {(eq x y)} + {(~ eq x y)}.
 Proof. rewrite /eq; exact: (Bool.reflect_dec _ _ (@eqP _ x y)). Qed.
 
 End Bitseq_as_UOT.
-Module BM := Make(Bitseq_as_UOT).
+Module BM := FMapAVL.Make(Bitseq_as_UOT).
+Module BF := FSetAVL.Make(Bitseq_as_UOT).
 
 (* --------------------------------------------------------------------------------------------------- *)
 
 Module Type Prerequisite.
 Parameters (U L : Type).
 (* L is the type of linear equations, U is a vector space*)
+(*lbl is the type of the informations encapsulated with vertices*)
 Parameters sat_ineq sat_eq sat_eq0: L -> U -> bool.
+Parameter extract_matrix : seq L -> seq U.
+Parameter extract_b : seq L -> U.
+Parameter inverses : seq U -> seq U -> bool.
+
 End Prerequisite.
+
+
 
 Module Algorithm (P : Prerequisite).
 Import P.
 
-Definition sat_Po Po (x : U) :=
-  all (fun e => sat_ineq e x) Po.
-Definition mask_eq Po (m : bitseq) (x : U):=
-  all (fun e => sat_eq e x) (mask m Po).
-Definition mask_eq0 Po (m: bitseq) (x : U):=
-  all (fun e => sat_eq0 e x) (mask m Po).
+Module Vertex <: Label.
+Definition t := (U * (seq U))%type.
+End Vertex.
+Module AlgoGraph := Graph Bitseq_as_UOT Vertex.
 
-Definition vertex := (bitseq * U)%type.
+
+Section Body.
+Context (n : nat) (Po : seq L) (G : AlgoGraph.t).
+Definition A := extract_matrix Po.
+Definition b := extract_b Po.
+
+
+Definition sat_Po (x : U) :=
+  all (fun e => sat_ineq e x) Po.
+Definition mask_eq (m : bitseq) (x : U):=
+  all (fun e => sat_eq e x) (mask m Po).
+Definition is_inv (m : bitseq) M :=
+  inverses (mask m A) M.
+
+(* Definition mask_eq0 (m: bitseq) (x : U) :=
+  all (fun e => sat_eq0 e x) (mask m Po). *)
+
+(* Definition vertex := (bitseq * U)%type.
 Record edge_d := Edge {norm : U; m1 : bitseq; m2 :bitseq}.
 
 Definition vtx_mask (v : vertex) := v.1.
-Definition vtx_point (v : vertex) := v.2.
+Definition vtx_point (v : vertex) := v.2. *)
 
-Definition mask_incident (s:bitseq) :=
+Definition vertex_consistent :=
+  let f := fun masq v b =>
+    if b is false then false else
+    let: ((x,M), _) := v in
+    [&& is_inv masq M, mask_eq masq x & sat_Po x]
+  in AlgoGraph.graph_fold f G true.
+
+Fixpoint inter_card (p q : bitseq) :=
+  match p,q with
+  |[::], [::] => 0%nat
+  |_, [::] => 0%nat
+  |[::], _ => 0%nat
+  |true::p', true::q' => (1 + inter_card p' q')%nat
+  |_::p', _::q' => inter_card p' q'
+  end.
+
+Definition struct_consistent :=
+  let f := fun I v b =>
+    if b is false then false else
+    let: (_, s) := v in
+    AlgoGraph.FSet.for_all (fun J => inter_card I J == (n-1)%nat) s
+  in AlgoGraph.graph_fold f G true.
+
+
+
+(* Definition mask_incident (s:bitseq) :=
   let fix aux temp cur res :=
     if cur is h::t then
       if h is true then
@@ -202,8 +252,8 @@ Definition bipartite (V : seq vertex) (E : BM.t edge_d) :=
 chaque arête incidente est dans la liste des arêtes; et pour chacune de ces arêtes incidentes, on vérifie que le sommet est bien l'un des deux sommets associés à l'arête.
 Et chaque arête aura été visitée deux fois exactement durant le processus*)
 
-Definition vtx_consistent n Po (V : seq vertex) :=
-  all (fun v => [&& sat_Po Po (vtx_point v), mask_eq Po (vtx_mask v) (vtx_point v) & mask_cardinal (vtx_mask v) == n]) V.
+Definition vtx_consistent (V : seq vertex) :=
+  all (fun v => [&& sat_Po (vtx_point v), mask_eq (vtx_mask v) (vtx_point v) & mask_cardinal (vtx_mask v) == n]) V.
 
 Fixpoint except_one (p q : bitseq) :=
   match p, q with
@@ -212,12 +262,13 @@ Fixpoint except_one (p q : bitseq) :=
   |_, _ => false
   end.
 
-Definition edge_consistent n Po (E : BM.t edge_d) :=
+Definition edge_consistent (E : BM.t edge_d) :=
   BM.fold (fun m elt b => 
-    [&& b, mask_eq0 Po m (norm elt), ~~ mask_eq0 Po (m1 elt) (norm elt), ~~mask_eq0 Po (m2 elt) (norm elt), (mask_cardinal m == (n-1)%N), except_one m (m1 elt) & except_one m (m2 elt)])
-    E true. 
+    [&& b, mask_eq0 m (norm elt), ~~ mask_eq0 (m1 elt) (norm elt), ~~mask_eq0 (m2 elt) (norm elt), (mask_cardinal m == (n-1)%N), except_one m (m1 elt) & except_one m (m2 elt)])
+    E true.  *)
 
 
+End Body.
 End Algorithm.
 
 (* Section TestCarre.

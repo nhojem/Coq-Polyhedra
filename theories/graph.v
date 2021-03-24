@@ -22,6 +22,8 @@ Module Graph (O : OrderedType) (L : Label).
 Module Map := FMapAVL.Make(O).
 Module FSet := FSetAVL.Make(O).
 
+Section Defs.
+
 Definition t := Map.t (L.t * FSet.t).
 
 Definition add_vertex v label (G : t) :=
@@ -64,5 +66,21 @@ Definition mem_edge v1 v2 (G : t) :=
 
 Definition find_vertex v (G : t) := Map.find v G.
 
+End Defs.
+
+Section Predicates.
+Inductive path x y (G : t) : Prop :=
+  |C z of (mem_edge x z G) & path z y G : path x y G
+  |R of (O.eq x y): path x y G.
+
+Definition connected (G : t) := forall x y, path x y G.
+
+(* Lemma foo x y (G : t) : mem_edge x y G -> path x y G.
+Proof.
+by move=> edge; apply: (C edge); apply: R.
+Qed.
+*)
+
+End Predicates.
 End Graph.
 

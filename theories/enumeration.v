@@ -97,9 +97,9 @@ Module Type Prerequisite.
 Parameters (U L : Type).
 (* L is the type of linear equations, U is a vector space*)
 (*lbl is the type of the informations encapsulated with vertices*)
-Parameters sat_ineq sat_eq sat_eq0: L -> U -> bool.
+Parameters sat_ineq sat_eq: L -> U -> bool.
 Parameter extract_matrix : seq L -> seq U.
-Parameter extract_b : seq L -> U.
+(*inverses checks if B = transpose of A^-1*)
 Parameter inverses : seq U -> seq U -> bool.
 
 End Prerequisite.
@@ -118,7 +118,6 @@ Module AlgoGraph := Graph Bitseq_as_UOT Vertex.
 Section Body.
 Context (n : nat) (Po : seq L) (G : AlgoGraph.t).
 Definition A := extract_matrix Po.
-Definition b := extract_b Po.
 
 
 Definition sat_Po (x : U) :=
@@ -142,7 +141,7 @@ Definition vertex_consistent :=
     if b is false then false else
     let: ((x,M), _) := v in
     [&& is_inv masq M, mask_eq masq x & sat_Po x]
-  in AlgoGraph.graph_fold f G true.
+  in AlgoGraph.vertex_fold f G true.
 
 Fixpoint inter_card (p q : bitseq) :=
   match p,q with
@@ -154,11 +153,13 @@ Fixpoint inter_card (p q : bitseq) :=
   end.
 
 Definition struct_consistent :=
-  let f := fun I v b =>
+  let f := fun I _ b =>
     if b is false then false else
-    let: (_, s) := v in
-    AlgoGraph.FSet.for_all (fun J => inter_card I J == (n-1)%nat) s
-  in AlgoGraph.graph_fold f G true.
+    (AlgoGraph.neighbour_fold
+      (fun J b => b && (inter_card I J == n-1)%nat) I G true) &&
+    AlgoGraph.nb_neighbours I G
+  in AlgoGraph.vertex_fold f G true.
+
 
 
 
@@ -357,11 +358,29 @@ Definition sat_eq (e : L) (x : U) :=
     if (r ?= (- h))%bigQ is Eq then true else false
   else false.
 
-Definition sat_eq0 (e : L) (x : U) :=
-  if e is h::t then
-    let r := (bigQ_dot t x) in
-    if (r ?= 0)%bigQ is Eq then true else false
-  else false.
+Definition extract_matrix (Po : seq L) : seq U :=
+  map (fun l => if l is h::t then t else nil) Po.
+
+Fixpoint eq_matrix (A B : seq U) : bool :=
+  match A, B with
+  |[::], [::] => true
+  |_, [::] => false
+  |[::], _ => false
+  |hA::tA, hB::tB =>
+    [&& size hA == size hB, 
+    all (fun x => if (x.1 ?= x.2)%bigQ is Eq then true else false) (zip hA hB) &
+    eq_matrix tA tB]
+  end.
+
+
+
+Definition inverses (A B : seq U) : bool :=
+  let Prod := [seq [seq bigQ_dot x y | y <- B] | x <- A] in
+  let n := size Prod in
+  let ID := [seq [seq if x == y then 1%bigQ else 0%bigQ | y <- iota 0 n] | x <- iota 0 n] in
+  eq_matrix Prod ID.
+  
+  
 
 End BigQPrerequisite.
 
@@ -369,25 +388,10 @@ Module BigQAlgorithm := Algorithm BigQPrerequisite.
 
 
 Definition bigQ_vtx_consistent :=
-  BigQAlgorithm.vtx_consistent.
+  BigQAlgorithm.vertex_consistent.
 
-Definition bigQ_edge_consistent :=
-  BigQAlgorithm.edge_consistent.
-
-Definition bigQ_bipartite := BigQAlgorithm.bipartite.
-
-
-Section BigQ_misc.
-
-
-Definition seq_to_map (L : seq (bitseq * (seq bigQ) * bitseq * bitseq)) :=
-  foldr
-  (fun x m => let: (key, norm, v1, v2) := x in (BM.add key (BigQAlgorithm.Edge norm v1 v2) m))
-  (BM.empty (BigQAlgorithm.edge_d)) L.
-  
-
-
-End BigQ_misc.
+Definition bigQ_struct_consistent :=
+  BigQAlgorithm.struct_consistent.
 
 (* Section TestExtract.
 

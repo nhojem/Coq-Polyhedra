@@ -33,15 +33,17 @@ Definition add_vertices s (G : t) :=
   let f x G := let: (v,l) := x in add_vertex v l G in
   foldr f G s.
 
-Definition add_edge v1 label1 v2 label2 (G : t) :=
-  let G' :=
-    if Map.find v1 G is Some (l,s) then Map.add v1 (l, FSet.add v2 s) G
-    else Map.add v1 (label1, FSet.singleton v2) G
-  in if Map.find v2 G' is Some (l,s) then Map.add v2 (l, FSet.add v1 s) G'
-  else Map.add v2 (label2, FSet.singleton v1) G'.
+Definition find_vertex v (G : t) := Map.find v G.
+
+Definition add_edge v1 v2 (G : t) :=
+  if find_vertex v1 G is Some (l1, s1) then
+    if find_vertex v2 G is Some (l2, s2) then
+      let G' := Map.add v1 (l1, FSet.add v2 s1) G in
+      Map.add v2 (l2, FSet.add v1 s2) G
+    else G else G.
 
 Definition add_edges s (G : t) :=
-  let f x G := let: (v1,l1,v2,l2) := x in add_edge v1 l1 v2 l2 G in
+  let f x G := let: (v1,v2) := x in add_edge v1 v2 G in
   foldr f G s.
 
 Definition neighbours v (G : t) :=
@@ -50,7 +52,7 @@ Definition neighbours v (G : t) :=
 Definition label v (G : t) :=
   if Map.find v G is Some (l,s) then Some l else None.
 
-Definition empty := Map.empty.
+Definition empty := Map.empty (L.t * FSet.t).
 
 Definition is_empty (G : t) := Map.is_empty G.
 
@@ -64,10 +66,13 @@ Definition mem_vertex v (G : t) := Map.mem v G.
 Definition mem_edge v1 v2 (G : t) :=
   if Map.find v1 G is Some (_,s) then FSet.mem v2 s else false.
 
-Definition find_vertex v (G : t) := Map.find v G.
 
-Definition graph_fold (A : Type) f (G : t) (a : A) :=
-  Map.fold f G a. 
+
+Definition vertex_fold (A : Type) f (G : t) (a : A) :=
+  Map.fold f G a.
+  
+Definition neighbour_fold (A: Type) f v (G : t) (a : A) :=
+  if neighbours v G is Some s then FSet.fold f s a else a.
 
 End Defs.
 

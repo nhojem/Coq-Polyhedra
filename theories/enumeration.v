@@ -338,7 +338,7 @@ Module BigQPrerequisite <: Prerequisite.
 Definition U := seq (seq bigQ).
 Definition L := (seq bigQ * seq bigQ)%type.
 
-(*e : L as form b, a, with size b = 1 + m, representing the inequation a * x <=_lex b*)
+(*e : L as form (b, a), with size b = 1 + m, representing the inequation a * x <=_lex b*)
 
 Definition bigQ_dot (x y : seq bigQ) : bigQ :=
   let aux := (fun res p => BigQ.add_norm res (BigQ.mul_norm p.1 p.2)) in

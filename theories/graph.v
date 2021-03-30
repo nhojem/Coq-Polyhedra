@@ -39,7 +39,7 @@ Definition add_edge v1 v2 (G : t) :=
   if find_vertex v1 G is Some (l1, s1) then
     if find_vertex v2 G is Some (l2, s2) then
       let G' := Map.add v1 (l1, FSet.add v2 s1) G in
-      Map.add v2 (l2, FSet.add v1 s2) G
+      Map.add v2 (l2, FSet.add v1 s2) G'
     else G else G.
 
 Definition add_edges s (G : t) :=

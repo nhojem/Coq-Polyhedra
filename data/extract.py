@@ -88,16 +88,16 @@ def bigq(x):
     J0 = [j for j in J if not j in I]
     return (len(I0) == 1 and len(J0) == 1), I0, J0 """
 
-def vect_kernel(A):
+""" def vect_kernel(A):
     A_r = sym.Matrix(A)
     K = A_r.nullspace()
-    return [fc.Fraction(x.p, x.q) for x in list(K[0])]
+    return [fc.Fraction(x.p, x.q) for x in list(K[0])] """
 
-def trans_inverse(A):
+""" def trans_inverse(A):
     A_r = sym.Matrix(A)
     M = A_r.inv().transpose()
     (r,c) = M.shape
-    return[[bigq(fc.Fraction(M[i,j].p, M[i,j].q)) for j in range(c)] for i in range(r)]
+    return[[bigq(fc.Fraction(M[i,j].p, M[i,j].q)) for j in range(c)] for i in range(r)] """
 
 def mask_Po(mask, Po):
     return [Po[i-1][1:] for i in mask]
@@ -110,11 +110,29 @@ def mask_gen(n, indices):
         res[i-1] = 'true'
     return res
 
+def perturbated_matrix(x, mask, Po, m):
+    extracted = [Po[i-1][1] for i in mask]
+    A_r = sym.Matrix(extracted)
+    M = A_r.inv().transpose()
+    (r,c) = M.shape
+    k = 0
+    res = [list(map(bigq,x))]
+    for i in range(m):
+        if i+1 in mask:
+            res.append([bigq(fc.Fraction(M[k,j].p, M[k,j].q)) for j in range(c)])
+            k+=1
+        else:
+            res.append([bigq(0) for j in range(c)])
+    return res
+
+
+    
+
 
 # --------------------------------------------------------------------
 def extract(name):
     """ data, mx, A, b = [], [], None, None """
-    data, mx, Po = [], [], []
+    data, mx, Po_aux = [], [], []
 
     try:
         os.makedirs(name)
@@ -139,18 +157,20 @@ def extract(name):
     with open(name + '.ine', 'r') as stream:
         mx = [x.strip() for x in stream]
         mx = [x.split() for x in mx[mx.index('begin')+2:mx.index('end')]]
-        Po = [list(map(fc.Fraction, xs)) for xs in mx]
+        Po_aux = [list(map(fc.Fraction, xs)) for xs in mx]
+        
     
-    m = len(Po)
-    n = len(Po[0]) - 1
+    m = len(Po_aux)
+    n = len(Po_aux[0]) - 1
+    Po = [([line[0]] + [1 if k == i else 0 for k in range(m)],[-x for x in line[1:]]) for i,line in enumerate(Po_aux)]
     vertices_aux = [(data[i], data[i+1]) for i in range(0, len(data), 2)]
-    vertices = [(mask_gen(m, ma), map(bigq , x), trans_inverse(mask_Po(ma, Po))) for (ma,x) in vertices_aux]
+    vertices = [(mask_gen(m, ma), perturbated_matrix(x,ma, Po, m)) for (ma,x) in vertices_aux]
     return m, n, vertices, Po
 
 
 def edges_gen(m, vertices):
     dico_edges = {}
-    for (v, _, _) in vertices:
+    for (v, _) in vertices:
         for i in range(m):
             if v[i] == 'true':
                 edge = v[:i] + ['false'] + v[i+1:]
@@ -175,11 +195,12 @@ def output(name, m, n, Po, vertices):
  
     with open(_x('%s_ine.v' % (FNAME,)), 'w') as stream:
         print(PRELUDE_INE, file=stream)
-        print('Definition Po: seq (seq bigQ) := [::', file=stream)
+        print('Definition Po: seq (seq bigQ * seq bigQ) := [::', file=stream)
         for i, v in enumerate(Po):
             sep  = ' ' if i == 0 else ';'
-            line = '; '.join(map(bigq, v))
-            print(f'{sep}  [:: {line}]', file=stream)
+            line = '; '.join(map(bigq, v[0]))
+            line2 = '; '.join(map(bigq, v[1]))
+            print(f'{sep}  ([:: {line}], [::{line2}])', file=stream)
         print('].', file=stream)
         print(file=stream)
         print(f'Definition m : nat := {m}%N.', file=stream)
@@ -190,17 +211,16 @@ def output(name, m, n, Po, vertices):
         index_v = i // CHUNK; j = 0; fname = '%s_%.4d' % (FNAME, index_v)
         with open(_x('v_' + fname + '.v'), 'w') as stream:
             print(PRELUDE_EXT, file=stream)
-            print(f'Definition v_{fname} : seq (bitseq * (seq bigQ * seq (seq bigQ))) := [::', file=stream)
+            print(f'Definition v_{fname} : seq (bitseq * (seq (seq bigQ))) := [::', file=stream)
             while i < len(vertices) and j < CHUNK:
                 sep  = ' ' if j == 0 else ';'
                 line = '; '.join(map(str, vertices[i][0]))
-                line2 = '; '.join(map(str,vertices[i][1]))
-                print(f'{sep}  ([:: {line}], ([:: {line2}], [:: ', file=stream)
-                for k in range(n):
+                print(f'{sep}  ([:: {line}], [:: ', file=stream)
+                for k in range(1+m):
                     sep = ' ' if k == 0 else ';'
-                    line = '; '.join(map(str, vertices[i][2][k]))
+                    line = '; '.join(map(str, vertices[i][1][k]))
                     print(f'{sep} [:: {line} ]', file=stream)
-                print(']))', file=stream)
+                print('])', file=stream)
                 i += 1; j += 1
             print('].', file=stream)
     
@@ -249,7 +269,7 @@ def output(name, m, n, Po, vertices):
             fname = '%s_%.4d' % (FNAME, t)
             print(f'Require Import e_{fname}.',file=stream)
         print(file=stream)
-        print('Definition v_list : seq (bitseq * (seq bigQ * seq (seq bigQ))) := Eval vm_compute in ', file=stream)
+        print('Definition v_list : seq (bitseq * (seq (seq bigQ))) := Eval vm_compute in ', file=stream)
         for t in range(index_v + 1):
             fname = '%s_%.4d' % (FNAME, t)
             sep = ' ' if t == 0 else '++'

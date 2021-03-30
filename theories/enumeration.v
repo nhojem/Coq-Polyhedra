@@ -413,55 +413,127 @@ Definition bigQ_struct_consistent :=
 
   Local Open Scope bigQ_scope.
 
-  Definition Po: seq (seq bigQ) := [::
-    [:: 1; 1; 0; 0]
-  ;  [:: 1; 0; 1; 0]
-  ;  [:: 1; 0; 0; 1]
-  ;  [:: 1; -1; 0; 0]
-  ;  [:: 1; 0; 0; -1]
-  ;  [:: 1; 0; -1; 0]
+  Definition v_data_0000 : seq (bitseq * (seq (seq bigQ))) := [::
+    ([:: false; false; false; true; true; true], [:: 
+    [:: 1; 1; 1 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 1; 0; 0 ]
+  ; [:: 0; 0; 1 ]
+  ; [:: 0; 1; 0 ]
+  ])
+  ;  ([:: true; false; false; false; true; true], [:: 
+    [:: -1; 1; 1 ]
+  ; [:: -1; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 1 ]
+  ; [:: 0; 1; 0 ]
+  ])
+  ;  ([:: false; false; true; true; false; true], [:: 
+    [:: 1; 1; -1 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; -1 ]
+  ; [:: 1; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 1; 0 ]
+  ])
+  ;  ([:: true; false; true; false; false; true], [:: 
+    [:: -1; 1; -1 ]
+  ; [:: -1; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; -1 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 1; 0 ]
+  ])
+  ;  ([:: false; true; true; true; false; false], [:: 
+    [:: 1; -1; -1 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; -1; 0 ]
+  ; [:: 0; 0; -1 ]
+  ; [:: 1; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ])
+  ;  ([:: true; true; true; false; false; false], [:: 
+    [:: -1; -1; -1 ]
+  ; [:: -1; 0; 0 ]
+  ; [:: 0; -1; 0 ]
+  ; [:: 0; 0; -1 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ])
+  ;  ([:: false; true; false; true; true; false], [:: 
+    [:: 1; -1; 1 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; -1; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 1; 0; 0 ]
+  ; [:: 0; 0; 1 ]
+  ; [:: 0; 0; 0 ]
+  ])
+  ;  ([:: true; true; false; false; true; false], [:: 
+    [:: -1; -1; 1 ]
+  ; [:: -1; 0; 0 ]
+  ; [:: 0; -1; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 0 ]
+  ; [:: 0; 0; 1 ]
+  ; [:: 0; 0; 0 ]
+  ])
   ].
 
-  Definition n : nat := 3.
-
-  Definition v_data_0000 : seq (bitseq * (seq bigQ)) := [::
-    ([:: false; false; false; true; true; true], [:: 1; 1; 1])
-  ;  ([:: true; false; false; false; true; true], [:: -1; 1; 1])
-  ;  ([:: false; false; true; true; false; true], [:: 1; 1; -1])
-  ;  ([:: true; false; true; false; false; true], [:: -1; 1; -1])
-  ;  ([:: false; true; true; true; false; false], [:: 1; -1; -1])
-  ;  ([:: true; true; true; false; false; false], [:: -1; -1; -1])
-  ;  ([:: false; true; false; true; true; false], [:: 1; -1; 1])
-  ;  ([:: true; true; false; false; true; false], [:: -1; -1; 1])
+  Definition e_data_0000 : seq (bitseq * bitseq) := [::
+    ([:: true; false; false; false; true; true], [:: false; false; false; true; true; true])
+  ; ([:: false; false; true; true; false; true], [:: false; false; false; true; true; true])
+  ; ([:: true; false; true; false; false; true], [:: false; false; true; true; false; true])
+  ; ([:: true; false; true; false; false; true], [:: true; false; false; false; true; true])
+  ; ([:: false; true; true; true; false; false], [:: false; false; true; true; false; true])
+  ; ([:: true; true; true; false; false; false], [:: false; true; true; true; false; false])
+  ; ([:: true; true; true; false; false; false], [:: true; false; true; false; false; true])
+  ; ([:: false; true; false; true; true; false], [:: false; false; false; true; true; true])
+  ; ([:: false; true; false; true; true; false], [:: false; true; true; true; false; false])
+  ; ([:: true; true; false; false; true; false], [:: false; true; false; true; true; false])
+  ; ([:: true; true; false; false; true; false], [:: true; false; false; false; true; true])
+  ; ([:: true; true; false; false; true; false], [:: true; true; true; false; false; false])
   ].
 
-  Definition e_data_0000 : seq (bitseq * (seq bigQ) * bitseq * bitseq) := [::
-    ([:: false; false; false; false; true; true], [:: 1; 0; 0], [:: false; false; false; true; true; true], [:: true; false; false; false; true; true])
-  ; ([:: false; false; false; true; false; true], [:: 0; 0; 1], [:: false; false; false; true; true; true], [:: false; false; true; true; false; true])
-  ; ([:: false; false; true; false; false; true], [:: 1; 0; 0], [:: false; false; true; true; false; true], [:: true; false; true; false; false; true])
-  ; ([:: true; false; false; false; false; true], [:: 0; 0; 1], [:: true; false; false; false; true; true], [:: true; false; true; false; false; true])
-  ; ([:: false; false; true; true; false; false], [:: 0; 1; 0], [:: false; false; true; true; false; true], [:: false; true; true; true; false; false])
-  ; ([:: false; true; true; false; false; false], [:: 1; 0; 0], [:: false; true; true; true; false; false], [:: true; true; true; false; false; false])
-  ; ([:: true; false; true; false; false; false], [:: 0; 1; 0], [:: true; false; true; false; false; true], [:: true; true; true; false; false; false])
-  ; ([:: false; false; false; true; true; false], [:: 0; 1; 0], [:: false; false; false; true; true; true], [:: false; true; false; true; true; false])
-  ; ([:: false; true; false; true; false; false], [:: 0; 0; 1], [:: false; true; true; true; false; false], [:: false; true; false; true; true; false])
-  ; ([:: false; true; false; false; true; false], [:: 1; 0; 0], [:: false; true; false; true; true; false], [:: true; true; false; false; true; false])
-  ; ([:: true; false; false; false; true; false], [:: 0; 1; 0], [:: true; false; false; false; true; true], [:: true; true; false; false; true; false])
-  ; ([:: true; true; false; false; false; false], [:: 0; 0; 1], [:: true; true; true; false; false; false], [:: true; true; false; false; true; false])
+  Definition Po: seq (seq bigQ * seq bigQ) := [::
+    ([:: 1; 1; 0; 0; 0; 0; 0], [::-1; 0; 0])
+  ;  ([:: 1; 0; 1; 0; 0; 0; 0], [::0; -1; 0])
+  ;  ([:: 1; 0; 0; 1; 0; 0; 0], [::0; 0; -1])
+  ;  ([:: 1; 0; 0; 0; 1; 0; 0], [::1; 0; 0])
+  ;  ([:: 1; 0; 0; 0; 0; 1; 0], [::0; 0; 1])
+  ;  ([:: 1; 0; 0; 0; 0; 0; 1], [::0; 1; 0])
   ].
 
-  Definition v_list : seq (bitseq * (seq bigQ)) := Eval vm_compute in 
+  Definition m : nat := 6%N.
+  Definition n : nat := 3%N.
+
+  Definition v_list : seq (bitseq * (seq (seq bigQ))) := Eval vm_compute in 
     v_data_0000
   .
 
-  Definition e_list : seq (bitseq * (seq bigQ) * bitseq * bitseq) := Eval vm_compute in
+  Definition e_list : seq (bitseq * bitseq) := Eval vm_compute in
     e_data_0000
   .
 
-  Definition output :=
-    Eval native_compute in bigQ_algorithm n Po v_list (seq_to_map e_list).
+  Definition input :=
+      BigQAlgorithm.AlgoGraph.add_edges e_list (BigQAlgorithm.AlgoGraph.add_vertices v_list BigQAlgorithm.AlgoGraph.empty).
 
-  Print output.
+  Definition vtx_output :=
+    Eval native_compute in bigQ_vtx_consistent Po input.
+
+  Definition struct_output :=
+      Eval native_compute in bigQ_struct_consistent n input.
+
+  Print vtx_output.
+  Print struct_output.
 
 End TestExtract. *)
 

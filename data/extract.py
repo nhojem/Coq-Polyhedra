@@ -3,6 +3,7 @@
 # --------------------------------------------------------------------
 import sys, os, re, shutil, fractions as fc, subprocess as sp
 import sympy as sym
+from tqdm import tqdm
 
 
 # --------------------------------------------------------------------
@@ -46,9 +47,6 @@ Unset Printing Implicit Defensive.
 
 Require Import data_ine list_data.
 
-Definition input :=
-    BigQAlgorithm.AlgoGraph.add_edges e_list (BigQAlgorithm.AlgoGraph.add_vertices v_list BigQAlgorithm.AlgoGraph.empty).
-
 Definition vtx_output :=
   Eval native_compute in bigQ_vtx_consistent Po input.
 
@@ -59,7 +57,7 @@ Print vtx_output.
 Print struct_output.
 '''.lstrip()
 
-JOB_DATA = r'''
+LIST_DATA = r'''
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq.
 From Bignums  Require Import BigQ BigN.
 (* ------- *) Require Import enumeration.
@@ -67,7 +65,6 @@ From Bignums  Require Import BigQ BigN.
 Set   Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-Require Import data_ine.
 
 '''.lstrip()
 
@@ -164,7 +161,9 @@ def extract(name):
     n = len(Po_aux[0]) - 1
     Po = [([line[0]] + [1 if k == i else 0 for k in range(m)],[-x for x in line[1:]]) for i,line in enumerate(Po_aux)]
     vertices_aux = [(data[i], data[i+1]) for i in range(0, len(data), 2)]
-    vertices = [(mask_gen(m, ma), perturbated_matrix(x,ma, Po, m)) for (ma,x) in vertices_aux]
+    vertices = []
+    for (ma, x) in tqdm(vertices_aux, "Calcul des bases lexicographiquement admissibles"):
+        vertices.append((mask_gen(m, ma), perturbated_matrix(x, ma, Po, m)))
     return m, n, vertices, Po
 
 
@@ -261,7 +260,7 @@ def output(name, m, n, Po, vertices):
             print('Print output.', file=stream)
  """
     with open(_x('list_' + FNAME + '.v'), 'w') as stream:
-        print(PRELUDE_EXT, file=stream)
+        print(LIST_DATA, file=stream)
         for t in range(index_v + 1):
             fname = '%s_%.4d' % (FNAME, t)
             print(f'Require Import v_{fname}.',file=stream)
@@ -269,19 +268,22 @@ def output(name, m, n, Po, vertices):
             fname = '%s_%.4d' % (FNAME, t)
             print(f'Require Import e_{fname}.',file=stream)
         print(file=stream)
-        print('Definition v_list : seq (bitseq * (seq (seq bigQ))) := Eval vm_compute in ', file=stream)
+        print("Definition G := BigQAlgorithm.AlgoGraph.empty.", file=stream)
         for t in range(index_v + 1):
             fname = '%s_%.4d' % (FNAME, t)
-            sep = ' ' if t == 0 else '++'
-            print(f'{sep} v_{fname}', file=stream)
-        print('.', file=stream)
-        print(file=stream)
-        print ('Definition e_list : seq (bitseq * bitseq) := Eval vm_compute in', file=stream)
+            if t == 0:
+                print(f'Definition G_{t} :=  BigQAlgorithm.AlgoGraph.add_vertices v_{fname} G.',file=stream)
+            else:
+                print(f'Definition G_{t} :=  BigQAlgorithm.AlgoGraph.add_vertices v_{fname} G_{t-1}.',file=stream)
         for t in range(index_e + 1):
             fname = '%s_%.4d' % (FNAME, t)
-            sep = ' ' if t == 0 else '++'
-            print(f'{sep} e_{fname}', file=stream)
-        print('.', file=stream)
+            if t == 0:
+                print(f'Definition H_{t} := BigQAlgorithm.AlgoGraph.add_edges e_{fname} G_{index_v}.',file=stream)
+            else:
+                print(f'Definition H_{t} := BigQAlgorithm.AlgoGraph.add_edges e_{fname} H_{t-1}.',file=stream)
+        print(f'Definition input := H_{index_e}.', file=stream)
+
+        
 
     with open(_x('job.v'), 'w') as stream:
         stream.write(JOB)

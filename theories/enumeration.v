@@ -353,7 +353,7 @@ Fixpoint lex_order (x y : seq bigQ) :=
     |Eq => lex_order tx ty
     end
   |_, _ => false
-  end. 
+  end.
 
 Definition sat_ineq (c : L) (x : U) :=
   let: (b, a) := c in

@@ -107,19 +107,30 @@ Lemma all2_bigQ (r s : seq bigQ) (R : rel bigQ) :
   (forall x y x' y', (x == x')%bigQ -> (y == y')%bigQ -> R x y = R x' y') ->
   (forall x y, in_seqQ x r -> in_seqQ y s -> R x y).
 Proof.
-elim: r s => // hr tr HI; case => // hs ts /= /andP [R_h all2_t] R_prop.
-move=> x y; case/boolP: (BigQ.eqb hr x); case/boolP: (BigQ.eqb hs y).
-- move/bigQ_eqP => eq_hs /bigQ_eqP eq_hr _ _.
-  by move: (R_prop _ _ _ _ eq_hr eq_hs) => <-.
-- Search BigQ.eq.
+Admitted.
+
+Lemma in_frVP (n : nat) (x : 'rV[rat]_n) v :
+  reflect (exists i, f (x 0 i) = v) (in_seqQ v (f_rV x)).
+Proof.
+apply/(iffP idP); rewrite/f_rV.
+- elim: (ord_enum n) => // a l HI; rewrite map_cons /=.
+Admitted.
+
+Lemma in_fcVP (n : nat) (x : 'cV[rat]_n) v :
+  reflect (exists i, f (x i 0) = v) (in_seqQ v (f_cV x)).
+Proof.
+Admitted.
 
 
-
-Lemma frV_inj (n : nat) (x y: 'rV[rat]_n) :
+Lemma frV_inj (n : nat) (x y : 'rV[rat]_n) :
   all2 BigQ.eqb (f_rV x) (f_rV y) -> x = y.
 Proof.
-rewrite all2E.
+Admitted.
 
+Lemma fcV_inj (n : nat) (x y : 'cV[rat]_n) :
+  all2 BigQ.eqb (f_cV x) (f_cV y) -> x = y.
+Proof.
+Admitted.
 
 
 Lemma ref_dot (n : nat) (x : 'rV_n) (y : 'cV_n) :
@@ -144,25 +155,48 @@ Qed.
 Lemma sat_eq_foo (n m : nat) (l : 'rV_n * 'rV_m.+1) (u: 'M_(n,m.+1)) :
   sat_eq l u = ref_sat_eq (f_L l) (f_U u).
 Proof.
-rewrite /sat_eq/ref_sat_eq /= ref_product.
-Search _ all2.
-
-
-
+Admitted.
 
 End Proofs.
 
 End Refinement.
 
 Module RefPrerequisite <: Prerequisite.
-Definition U := seq (seq rat).
-Definition L := (seq rat * seq rat)%type.
+Definition U := seq (seq bigQ).
+Definition L := (seq bigQ * seq bigQ)%type.
 Definition sat_ineq := ref_sat_ineq.
 Definition sat_eq := ref_sat_eq.
 End RefPrerequisite.
 
 Module RefAlgorithm := Algorithm RefPrerequisite.
 
+Print RefAlgorithm.vertex_consistent.
+Print PolyAlgorithm.vertex_consistent.
+Print RefPrerequisite.L.
+Print PolyPrerequisite.L.
+Print PolyAlgorithm.struct_consistent.
+
+Module PA := PolyAlgorithm.
+Module RA := RefAlgorithm.
+Module PG := PolyAlgorithm.AlgoGraph.
+Module RG := RefAlgorithm.AlgoGraph.
+
+Section GraphStructure.
+
+Variable n : nat.
+Variable G1 : PolyAlgorithm.AlgoGraph.t.
+Variable G2 : RefAlgorithm.AlgoGraph.t.
+
+Definition eqv_graph :=
+  (PG.mem_vertex^~ G1 =1 RG.mem_vertex^~ G2) /\
+  (forall v1 v2, PG.mem_edge v1 v2 G1 = RG.mem_edge v1 v2 G2).
+
+Lemma eqv_struct_consistent : eqv_graph ->
+  PolyAlgorithm.struct_consistent n G1 = RefAlgorithm.struct_consistent n G2.
+Proof.
+rewrite /PA.struct_consistent /RA.struct_consistent.
+
+End GraphStructure.
 
 
 

@@ -66,8 +66,6 @@ Definition mem_vertex v (G : t) := Map.mem v G.
 Definition mem_edge v1 v2 (G : t) :=
   if Map.find v1 G is Some (_,s) then FSet.mem v2 s else false.
 
-
-
 Definition vertex_fold (A : Type) f (G : t) (a : A) :=
   Map.fold f G a.
   

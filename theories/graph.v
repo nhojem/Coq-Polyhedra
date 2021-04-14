@@ -72,6 +72,21 @@ Definition vertex_fold (A : Type) f (G : t) (a : A) :=
 Definition neighbour_fold (A: Type) f v (G : t) (a : A) :=
   if neighbours v G is Some s then FSet.fold f s a else a.
 
+Definition vector_all f G :=
+  vertex_fold (fun k d b => b && f k d) G true.
+
+Definition neighbour_all f G v :=
+  neighbour_fold (fun k b => b && f k) v G true.
+
+Lemma vector_foldE {n} f G x0 (vs : n.-tuple _) :
+     (forall i j, (tnth vs i).1 <> (tnth vs j).1)
+  -> (forall v, (exists i, (tnth vs i).1 = v) <-> mem_vertex v G)
+  -> (forall i, find_vertex (tnth vs i).1 G = Some (tnth vs i).2)
+  -> (forall a, associative (f a))
+  -> (forall a, commutative (f a))
+  ->   vertex_fold (fun k d a => f a (k, d)) G x0
+     = foldr (fun kd a => f a kd) x0 vs.
+Search _ Map.fold.
 End Defs.
 
 Section Predicates.

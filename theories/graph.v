@@ -106,24 +106,56 @@ Proof.
 Admitted.
 
 Fixpoint is_correct_list (G : t) (vs : seq (O.t * _)) :=
-  if vs is (k,d)::tl then
-  (find_vertex k G = Some d) /\ (is_correct_list G tl) else
+  if vs is h::tl then
+  (find_vertex h.1 G = Some h.2) /\ (is_correct_list G tl) else
   True.
 
-Lemma is_correct_listP (G : t) vs (v : O.t) :
+Lemma is_correct_list_rem (G : t) vs (v : O.t) :
   mem_vertex v G -> is_correct_list G vs ->
   is_correct_list (remove_vertex v G) [seq x <- vs | x.1 != v].
 Proof.
 Admitted.
 
-Lemma foo (A : Type) f k d (G : t) (x0 : A) :
+Lemma is_correct_listP (G : t):
+  is_correct_list G (Map.elements G).
+Proof.
+move: (@Map.elements_2 _ G).
+elim: (Map.elements G) => // a l HI corr /=; split.
+- rewrite /find_vertex; exact/Map.find_1/corr/InA_cons_hd.
+- apply/HI => x e in_x; exact/corr/InA_cons_tl.
+Qed.
+
+Fixpoint rem_vertex (T : Type) v (s : seq (O.t * T)) := match s with
+  |h::t => if h.1 == v then t else (h::(rem_vertex v t))
+  |[::] => [::]
+end.
+
+Lemma elements_rem G (v : O.t):
+  Map.elements (remove_vertex v G) =
+  rem_vertex v (Map.elements G).
+Proof.
+Admitted.
+
+(* Lemma uniq_elements G (v : O.t):
+  size (rem_vertex v (Map.elements G)) >= *)
+
+
+Lemma foo (A : Type) f (k : O.t) d (G : t) (x0 : A) :
   find_vertex k G = Some d ->
   (forall k1 d1 k2 d2 a, f k1 d1 (f k2 d2 a) = f k2 d2 (f k1 d1 a)) ->
   vertex_fold f G x0 = f k d (vertex_fold f (remove_vertex k G) x0).
 Proof.
+rewrite /find_vertex /vertex_fold !Map.fold_1 elements_rem.
 move=> k_map fAC.
-rewrite/vertex_fold !Map.fold_1.
-Admitted.
+move:(Map.find_2 k_map) => maps_to.
+move:(Map.elements_1 maps_to).
+elim : (Map.elements G); first by rewrite InA_nil.
+move=> a l HI /= /InA_cons [].
++ case => /= <- <-; rewrite eq_refl /=.
+  suff ->: forall s x0, fold_left (fun a0 p => f p.1 p.2 a0) s (f k d x0) =
+  f k d (fold_left (fun a0 p => f p.1 p.2 a0) s x0) by [].
+  by elim => // hs ts HI_have x1 /=; rewrite -HI_have fAC.
++ move=> /=.
 
 
 Lemma vertex_foldE (A : Type) f G (x0 : A) vs:

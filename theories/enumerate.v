@@ -170,12 +170,6 @@ End RefPrerequisite.
 
 Module RefAlgorithm := Algorithm RefPrerequisite.
 
-Print RefAlgorithm.vertex_consistent.
-Print PolyAlgorithm.vertex_consistent.
-Print RefPrerequisite.L.
-Print PolyPrerequisite.L.
-Print PolyAlgorithm.struct_consistent.
-
 Module PA := PolyAlgorithm.
 Module RA := RefAlgorithm.
 Module PG := PolyAlgorithm.AlgoGraph.
@@ -191,10 +185,22 @@ Definition eqv_graph :=
   (PG.mem_vertex^~ G1 =1 RG.mem_vertex^~ G2) /\
   (forall v1 v2, PG.mem_edge v1 v2 G1 = RG.mem_edge v1 v2 G2).
 
+
 Lemma eqv_struct_consistent : eqv_graph ->
   PolyAlgorithm.struct_consistent n G1 = RefAlgorithm.struct_consistent n G2.
 Proof.
-rewrite /PA.struct_consistent /RA.struct_consistent.
+move=> G1_eqv_G2; rewrite /PA.struct_consistent /PG.vertex_all.
+rewrite (@PG.vertex_foldE _ _ G1 _ (unzip1 (PG.adjacency_list G1))); first last => //.
+- by case => //= ??; rewrite andbC.
+- admit.
+- have ->:
+  (fun x =>  andb^~ (PA.neighbour_condition n G1 x)) =
+  (fun x => andb^~ (RA.neighbour_condition n G2 x)) by admit.
+  rewrite -(@RG.vertex_foldE _ _ G2) => //.
+- admit.
+- admit.
+- admit.
+Admitted.
 
 End GraphStructure.
 

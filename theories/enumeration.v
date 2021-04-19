@@ -151,13 +151,13 @@ Fixpoint inter_card (p q : bitseq) :=
   |_::p', _::q' => inter_card p' q'
   end.
 
+Definition neighbour_condition I :=
+  (AlgoGraph.neighbour_all
+    (fun J => inter_card I J == (n-1)%nat) G I) &&
+  (AlgoGraph.nb_neighbours I G == Some n).
+
 Definition struct_consistent :=
-  let f := fun I _ b =>
-    if b is false then false else
-    (AlgoGraph.neighbour_fold
-      (fun J b => b && (inter_card I J == n-1)%nat) I G true) &&
-    (AlgoGraph.nb_neighbours I G == Some n)
-  in AlgoGraph.vertex_fold f G true.
+  AlgoGraph.vertex_all (fun I _ => neighbour_condition I) G.
 
 
 

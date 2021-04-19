@@ -9,7 +9,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Require BinNums FMapAVL FSetAVL.
-Require Import OrderedType.
+Require Import OrderedType OrderedTypeEx.
 
 Definition seq := seq.seq.
 
@@ -17,10 +17,18 @@ Module Type Label.
 Parameter t : Type.
 End Label.
 
-Module Graph (O : OrderedType) (L : Label).
+Module Graph (U : UsualOrderedType) (L : Label).
 
-Module Map := FMapAVL.Make(O).
-Module FSet := FSetAVL.Make(O).
+Module OrderedEqType (Us : UsualOrderedType).
+
+Definition eq_mixin := comparableMixin Us.eq_dec.
+Canonical t := EqType Us.t eq_mixin.
+
+End OrderedEqType.
+
+Module O := OrderedEqType U.
+Module Map := FMapAVL.Make(U).
+Module FSet := FSetAVL.Make(U).
 
 Section Defs.
 
@@ -72,24 +80,94 @@ Definition vertex_fold (A : Type) f (G : t) (a : A) :=
 Definition neighbour_fold (A: Type) f v (G : t) (a : A) :=
   if neighbours v G is Some s then FSet.fold f s a else a.
 
-Definition vector_all f G :=
+Definition vertex_all f G :=
   vertex_fold (fun k d b => b && f k d) G true.
 
 Definition neighbour_all f G v :=
   neighbour_fold (fun k b => b && f k) v G true.
 
-Lemma vector_foldE {n} f G x0 (vs : n.-tuple _) :
-     (forall i j, (tnth vs i).1 <> (tnth vs j).1)
-  -> (forall v, (exists i, (tnth vs i).1 = v) <-> mem_vertex v G)
-  -> (forall i, find_vertex (tnth vs i).1 G = Some (tnth vs i).2)
-  -> (forall a, associative (f a))
-  -> (forall a, commutative (f a))
-  ->   vertex_fold (fun k d a => f a (k, d)) G x0
-     = foldr (fun kd a => f a kd) x0 vs.
-Search _ Map.fold.
+Definition vertex_list (G : t) : seq O.t := unzip1 (Map.elements G).
+
+Definition remove_vertex v (G : t) := Map.remove v G.
+
+Lemma vertex_listP (G : t) x :
+  x \in vertex_list G = mem_vertex x G.
+Proof.
+Admitted.
+
+Lemma vtx_list_uniq (G : t): uniq (vertex_list G).
+Proof.
+Admitted.
+
+Lemma vtx_list_remove G v :
+  mem_vertex v G ->
+  perm_eq (vertex_list G) (v :: vertex_list (remove_vertex v G)).
+Proof.
+Admitted.
+
+Fixpoint is_correct_list (G : t) (vs : seq (O.t * _)) :=
+  if vs is (k,d)::tl then
+  (find_vertex k G = Some d) /\ (is_correct_list G tl) else
+  True.
+
+Lemma is_correct_listP (G : t) vs (v : O.t) :
+  mem_vertex v G -> is_correct_list G vs ->
+  is_correct_list (remove_vertex v G) [seq x <- vs | x.1 != v].
+Proof.
+Admitted.
+
+Lemma foo (A : Type) f k d (G : t) (x0 : A) :
+  find_vertex k G = Some d ->
+  (forall k1 d1 k2 d2 a, f k1 d1 (f k2 d2 a) = f k2 d2 (f k1 d1 a)) ->
+  vertex_fold f G x0 = f k d (vertex_fold f (remove_vertex k G) x0).
+Proof.
+move=> k_map fAC.
+rewrite/vertex_fold !Map.fold_1.
+Admitted.
+
+
+Lemma vertex_foldE (A : Type) f G (x0 : A) vs:
+  perm_eq (unzip1 vs) (vertex_list G)
+  -> is_correct_list G vs
+  -> (forall a k d k' d', f k d (f k' d' a) = f k' d' (f k d a))
+  -> vertex_fold f G x0 =
+  foldr (fun x a => f x.1 x.2 a) x0 vs.
+Proof.
+elim: vs G => [|a l HI].
+- move=> G /=; rewrite perm_sym /vertex_fold Map.fold_1.
+  by move/perm_nilP/map_eq_nil => -> /=.
+- case: a => k d /= G perm_G.
+  have k_vtx : mem_vertex k G.
+  + move: (perm_mem perm_G) => /(_ k) /esym.
+    by rewrite inE eq_refl /= vertex_listP.
+  move/(perm_trans perm_G) : (vtx_list_remove k_vtx).
+  rewrite perm_cons => perm_l.
+  case => find_vtx; move/(is_correct_listP k_vtx).
+  have ->: [seq x <- l | x.1 != k] = l.
+  + apply/all_filterP; rewrite -(@all_map _ _ fst (fun x => x != k)).
+    apply/allP => x x_l; move: (perm_uniq perm_G).
+    rewrite vtx_list_uniq cons_uniq => /andP [+ _].
+    by apply/contra; move/eqP => <-.
+  move=> corr_l fAC; rewrite -(HI _ perm_l corr_l fAC).
+  Admitted.
+  
+ 
+
+
+
+
+Lemma key_foldE (A : Type) f G (x0 : A) (vs : seq (O.t)):
+  uniq vs
+  -> (forall x, x \in vs = mem_vertex x G)
+  -> (forall a k k', f (f a k) k' = f (f a k') k)
+  -> vertex_fold (fun k _ a => f a k) G x0 =
+    foldr (fun x a => f a x) x0 vs.
+Proof.
+Admitted.
+
 End Defs.
 
-Section Predicates.
+(* Section Predicates.
 Inductive path x y (G : t) : Prop :=
   |C z of (mem_edge x z G) & path z y G : path x y G
   |R of (O.eq x y): path x y G.
@@ -102,7 +180,7 @@ by move=> edge; apply: (C edge); apply: R.
 Qed.
 *)
 
-End Predicates.
+End Predicates. *)
 End Graph.
 
 

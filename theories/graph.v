@@ -148,15 +148,20 @@ Proof.
 rewrite /find_vertex /vertex_fold !Map.fold_1 elements_rem.
 move=> k_map fAC.
 move:(Map.find_2 k_map) => maps_to.
-move:(Map.elements_1 maps_to).
+move:(Map.elements_1 maps_to) (@Map.elements_3w _ G) x0.
 elim : (Map.elements G); first by rewrite InA_nil.
 move=> a l HI /= /InA_cons [].
-+ case => /= <- <-; rewrite eq_refl /=.
++ case => /= <- <- _ ?; rewrite eq_refl /=.
   suff ->: forall s x0, fold_left (fun a0 p => f p.1 p.2 a0) s (f k d x0) =
   f k d (fold_left (fun a0 p => f p.1 p.2 a0) s x0) by [].
   by elim => // hs ts HI_have x1 /=; rewrite -HI_have fAC.
-+ move=> /=.
-
++ move=> inl nodup_al.
+  have ->: ((a.1 == k :> O.t) = false).
+  - admit.
+  move=> x0 /=; rewrite HI //.
+  rewrite -(@app_nil_l _ (a::l)) in nodup_al.
+  exact: (NoDupA_split nodup_al).
+Admitted.
 
 Lemma vertex_foldE (A : Type) f G (x0 : A) vs:
   perm_eq (unzip1 vs) (vertex_list G)
@@ -174,14 +179,15 @@ elim: vs G => [|a l HI].
     by rewrite inE eq_refl /= vertex_listP.
   move/(perm_trans perm_G) : (vtx_list_remove k_vtx).
   rewrite perm_cons => perm_l.
-  case => find_vtx; move/(is_correct_listP k_vtx).
+  case => find_vtx; move/(is_correct_list_rem k_vtx).
   have ->: [seq x <- l | x.1 != k] = l.
   + apply/all_filterP; rewrite -(@all_map _ _ fst (fun x => x != k)).
     apply/allP => x x_l; move: (perm_uniq perm_G).
     rewrite vtx_list_uniq cons_uniq => /andP [+ _].
     by apply/contra; move/eqP => <-.
   move=> corr_l fAC; rewrite -(HI _ perm_l corr_l fAC).
-  Admitted.
+  exact: foo.
+Qed.
   
  
 

@@ -1,5 +1,8 @@
 Require Import Recdef.
+Require Import FMaps FMapAVL FSetAVL.
 From mathcomp Require Import all_ssreflect all_algebra finmap.
+Require Import MapFold.
+
 (* Require Import extra_misc inner_product extra_matrix xorder vector_order row_submx vector_order.
 Require Import hpolyhedron polyhedron barycenter poly_base.
  *)
@@ -7,9 +10,10 @@ Require Import hpolyhedron polyhedron barycenter poly_base.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
+Unset SsrOldRewriteGoalsOrder.
 
-Require BinNums FMapAVL FSetAVL.
-Require Import OrderedType OrderedTypeEx.
+Open Scope order_scope.
+Import Order.Theory.
 
 Definition seq := seq.seq.
 
@@ -17,18 +21,12 @@ Module Type Label.
 Parameter t : Type.
 End Label.
 
-Module Graph (U : UsualOrderedType) (L : Label).
+Module Graph (O : Sig) (L : Label).
 
-Module OrderedEqType (Us : UsualOrderedType).
-
-Definition eq_mixin := comparableMixin Us.eq_dec.
-Canonical t := EqType Us.t eq_mixin.
-
-End OrderedEqType.
-
-Module O := OrderedEqType U.
-Module Map := FMapAVL.Make(U).
-Module FSet := FSetAVL.Make(U).
+Module MF := MapFold O.
+Module Map := MF.FO.MO.
+Module Keys := MF.FO.MO.OT.
+Module FSet := FSetAVL.Make(Keys).
 
 Section Defs.
 
@@ -86,139 +84,61 @@ Definition vertex_all f G :=
 Definition neighbour_all f G v :=
   neighbour_fold (fun k b => b && f k) v G true.
 
-Definition vertex_list (G : t) : seq O.t := unzip1 (Map.elements G).
-
-Definition remove_vertex v (G : t) := Map.remove v G.
-
-Lemma vertex_listP (G : t) x :
-  x \in vertex_list G = mem_vertex x G.
-Proof.
-Admitted.
-
-Lemma vtx_list_uniq (G : t): uniq (vertex_list G).
-Proof.
-Admitted.
-
-Lemma vtx_list_remove G v :
-  mem_vertex v G ->
-  perm_eq (vertex_list G) (v :: vertex_list (remove_vertex v G)).
-Proof.
-Admitted.
-
-Fixpoint is_correct_list (G : t) (vs : seq (O.t * _)) :=
-  if vs is h::tl then
-  (find_vertex h.1 G = Some h.2) /\ (is_correct_list G tl) else
-  True.
-
-Lemma is_correct_list_rem (G : t) vs (v : O.t) :
-  mem_vertex v G -> is_correct_list G vs ->
-  is_correct_list (remove_vertex v G) [seq x <- vs | x.1 != v].
-Proof.
-Admitted.
-
-Lemma is_correct_listP (G : t):
-  is_correct_list G (Map.elements G).
-Proof.
-move: (@Map.elements_2 _ G).
-elim: (Map.elements G) => // a l HI corr /=; split.
-- rewrite /find_vertex; exact/Map.find_1/corr/InA_cons_hd.
-- apply/HI => x e in_x; exact/corr/InA_cons_tl.
-Qed.
-
-Fixpoint rem_vertex (T : Type) v (s : seq (O.t * T)) := match s with
-  |h::t => if h.1 == v then t else (h::(rem_vertex v t))
-  |[::] => [::]
-end.
-
-Lemma elements_rem G (v : O.t):
-  Map.elements (remove_vertex v G) =
-  rem_vertex v (Map.elements G).
-Proof.
-Admitted.
-
-(* Lemma uniq_elements G (v : O.t):
-  size (rem_vertex v (Map.elements G)) >= *)
-
-
-Lemma foo (A : Type) f (k : O.t) d (G : t) (x0 : A) :
-  find_vertex k G = Some d ->
-  (forall k1 d1 k2 d2 a, f k1 d1 (f k2 d2 a) = f k2 d2 (f k1 d1 a)) ->
-  vertex_fold f G x0 = f k d (vertex_fold f (remove_vertex k G) x0).
-Proof.
-rewrite /find_vertex /vertex_fold !Map.fold_1 elements_rem.
-move=> k_map fAC.
-move:(Map.find_2 k_map) => maps_to.
-move:(Map.elements_1 maps_to) (@Map.elements_3w _ G) x0.
-elim : (Map.elements G); first by rewrite InA_nil.
-move=> a l HI /= /InA_cons [].
-+ case => /= <- <- _ ?; rewrite eq_refl /=.
-  suff ->: forall s x0, fold_left (fun a0 p => f p.1 p.2 a0) s (f k d x0) =
-  f k d (fold_left (fun a0 p => f p.1 p.2 a0) s x0) by [].
-  by elim => // hs ts HI_have x1 /=; rewrite -HI_have fAC.
-+ move=> inl nodup_al.
-  have ->: ((a.1 == k :> O.t) = false).
-  - admit.
-  move=> x0 /=; rewrite HI //.
-  rewrite -(@app_nil_l _ (a::l)) in nodup_al.
-  exact: (NoDupA_split nodup_al).
-Admitted.
-
-Lemma vertex_foldE (A : Type) f G (x0 : A) vs:
-  perm_eq (unzip1 vs) (vertex_list G)
-  -> is_correct_list G vs
-  -> (forall a k d k' d', f k d (f k' d' a) = f k' d' (f k d a))
-  -> vertex_fold f G x0 =
-  foldr (fun x a => f x.1 x.2 a) x0 vs.
-Proof.
-elim: vs G => [|a l HI].
-- move=> G /=; rewrite perm_sym /vertex_fold Map.fold_1.
-  by move/perm_nilP/map_eq_nil => -> /=.
-- case: a => k d /= G perm_G.
-  have k_vtx : mem_vertex k G.
-  + move: (perm_mem perm_G) => /(_ k) /esym.
-    by rewrite inE eq_refl /= vertex_listP.
-  move/(perm_trans perm_G) : (vtx_list_remove k_vtx).
-  rewrite perm_cons => perm_l.
-  case => find_vtx; move/(is_correct_list_rem k_vtx).
-  have ->: [seq x <- l | x.1 != k] = l.
-  + apply/all_filterP; rewrite -(@all_map _ _ fst (fun x => x != k)).
-    apply/allP => x x_l; move: (perm_uniq perm_G).
-    rewrite vtx_list_uniq cons_uniq => /andP [+ _].
-    by apply/contra; move/eqP => <-.
-  move=> corr_l fAC; rewrite -(HI _ perm_l corr_l fAC).
-  exact: foo.
-Qed.
-  
- 
-
-
-
-
-Lemma key_foldE (A : Type) f G (x0 : A) (vs : seq (O.t)):
-  uniq vs
-  -> (forall x, x \in vs = mem_vertex x G)
-  -> (forall a k k', f (f a k) k' = f (f a k') k)
-  -> vertex_fold (fun k _ a => f a k) G x0 =
-    foldr (fun x a => f a x) x0 vs.
-Proof.
-Admitted.
+Definition vertex_list (G : t) := unzip1 (Map.elements G).
 
 End Defs.
 
-(* Section Predicates.
-Inductive path x y (G : t) : Prop :=
-  |C z of (mem_edge x z G) & path z y G : path x y G
-  |R of (O.eq x y): path x y G.
+Section Lemmas.
 
-Definition connected (G : t) := forall x y, path x y G.
+Section VertexFold.
 
-(* Lemma foo x y (G : t) : mem_edge x y G -> path x y G.
+
+Lemma vertex_foldE A f rA (G : t) (a:A) vtxs:
+  `{Equivalence rA} ->
+  MF.fP_d f rA -> MF.fC_d f rA -> MF.fcomp_d f rA ->
+  Map.IsBindings G vtxs ->
+  rA (vertex_fold f G a) (foldr (fun kv x0 => f kv.1 kv.2 x0) a vtxs).
+Proof. exact: MF.L. Qed.
+
+
+
+Lemma vertex_allE f rA (G:t) vtxs:
+  `{Equivalence rA} ->
+  (forall a b c d, rA a b -> rA (a && (f c d)) (b && (f c d))) -> 
+  Map.IsBindings G vtxs ->
+  rA (vertex_all f G) (all (fun x => f x.1 x.2) vtxs).
 Proof.
-by move=> edge; apply: (C edge); apply: R.
+move=> rAE fP bind_vtxs.
+apply: (eqatrans rAE (vertex_foldE _ _ _ _ _ bind_vtxs)) => //.
+- move => ?? -> ?? -> ??; exact: fP.
+- move=> ?????; rewrite andbAC; apply/fP/fP/(eqarefl rAE).
+- move=> ????; exact: fP.
+- elim: vtxs {bind_vtxs} => //=; first exact: (eqarefl rAE).
+  by move=> a l ih; rewrite [in X in rA _ X]andbC; apply/fP/ih.
 Qed.
-*)
 
-End Predicates. *)
+Lemma vertex_fold_eq A f (G : t) (a : A) vtxs:
+  Map.IsBindings G vtxs ->
+  MF.fC_d f eq ->
+  (vertex_fold f G a) = (foldr (fun kv x0 => f kv.1 kv.2 x0) a vtxs).
+Proof.
+move=> ??; apply: vertex_foldE => //.
+- by move=> ?? -> ?? -> ?? ->.
+- by move=> ???? ->.
+Qed.
+
+Lemma vertex_all_eq f (G : t) vtxs:
+  Map.IsBindings G vtxs ->
+  (vertex_all f G) = (all (fun x => f x.1 x.2) vtxs).
+Proof. by move=> ?; apply: vertex_allE => //; move=> ???? ->. Qed.
+
+
+End VertexFold.
+
+
+
+End Lemmas.
+
 End Graph.
 
 

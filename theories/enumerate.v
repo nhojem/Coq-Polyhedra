@@ -2,7 +2,7 @@ Require Import Recdef.
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 Require Import extra_misc inner_product extra_matrix xorder vector_order row_submx vector_order.
 Require Import hpolyhedron polyhedron barycenter poly_base.
-Require Import enumeration graph.
+Require Import enumeration graph MapFold.
 From Bignums Require Import BigQ.
 
 Set Implicit Arguments.
@@ -189,6 +189,12 @@ Definition eqv_graph :=
 Lemma eqv_struct_consistent : eqv_graph ->
   PolyAlgorithm.struct_consistent n G1 = RefAlgorithm.struct_consistent n G2.
 Proof.
+move=> eqv_G12; rewrite /PA.struct_consistent /RA.struct_consistent.
+rewrite (PG.vertex_all_eq _ (PG.assoc_listP G1)).
+rewrite (RG.vertex_all_eq _ (RG.assoc_listP G2)).
+rewrite /PA.neighbour_condition /RA.neighbour_condition.
+
+
 move=> G1_eqv_G2; rewrite /PA.struct_consistent /PG.vertex_all.
 rewrite (@PG.vertex_foldE _ _ G1 _ (unzip1 (PG.adjacency_list G1))); first last => //.
 - by case => //= ??; rewrite andbC.

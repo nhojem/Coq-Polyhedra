@@ -58,9 +58,13 @@ Module M (O : Sig).
   Definition IsBindings {U} (m : t U) (bds : seq.seq (T * U)) :=
     [/\ perm_eq (unzip1 bds) (unzip1 (elements m))
       & forall k, find k m = ohead [seq kv.2 | kv <- bds & kv.1 == k]].
+
+  Definition all {U} f (m : t U) :=
+    fold (fun k d b => b && f k d) m true.
+
 End M.
 
-Module F (O : Sig).
+Module MapFold (O : Sig).
   Module MO := M O.
   Include FMapFacts.Facts(MO).
   Include FMapFacts.Properties(MO).
@@ -135,42 +139,100 @@ Module F (O : Sig).
       by rewrite [_ == bd.1]eq_sym (negbTE ne) -ih.
     - by rewrite remove_neq_o // hbds /= (negbTE neqP).
   Qed.
-End F.
 
-Module MapFold (O : Sig).
+Lemma makeBinding {U} (m: MO.t U) keys:
+  perm_eq keys (unzip1 (MO.elements m)) ->
+  exists2 l, unzip1 l = keys & MO.IsBindings m l.
+Proof.
+elim: keys m => //=.
+- move=> m; rewrite perm_sym; move/perm_nilP/(congr1 size) => /=.
+  rewrite size_map; case E: (MO.elements m) => // _.
+  exists [::] => //; split; rewrite ?E //=.
+  by move=> ?; rewrite F.elements_o E.
+- move => a l ih m perm_al.
+  have: perm_eq l (unzip1 (MO.elements (MO.remove a m))).
+  + move:(perm_uniq perm_al); rewrite uniq_keys cons_uniq => /andP [anl uniql].
+    apply: uniq_perm; rewrite ?uniq_keys //.
+    move=> x; apply/idP/inkeysP.
+    - move=> xl; rewrite F.remove_neq_in_iff.
+        by apply/inkeysP; rewrite -(perm_mem perm_al) inE xl orbT.
+      by apply/eqP; apply/contraNneq: anl => ->.
+    - case/F.remove_in_iff => /eqP + /inkeysP.
+      rewrite -(perm_mem perm_al) in_cons eq_sym.
+      by case: (x == a).
+  case/ih => L unzip_L bind_L.
+  move: (perm_mem perm_al)=> /(_ a) /eqP.
+  rewrite eq_sym in_cons eq_refl /= => /eqP/inkeysP/F.elements_in_iff.
+  case => e elt_ae; move: (MO.find_1 (MO.elements_2 elt_ae)) => find_ae.
+  exists ((a,e) :: L); last split; rewrite /= ?unzip_L //.
+  move=> k; case/boolP: (a==k).
+  + by move=> /eqP <- /=.
+  + by move/eqP => ?; case: bind_L => _ /(_ k) <-; rewrite F.remove_neq_o.
+Qed.
 
-Module FO := F O.
-Import FO.MO.
-Notation fmap := t.
-
+Section Fold. 
 (* -------------------------------------------------------------------- *)
 Require Import Classes.RelationClasses.
 
-Definition fP_d {U A} (f : T -> U -> A -> A) rA :=
+Definition fP_d {T U A} (f : T -> U -> A -> A) rA :=
   `{Proper (eq ==> eq ==> rA ==> rA) f}.
 
-Definition fC_d {U A} (f : T -> U -> A -> A) (rA : A -> A -> Prop)  :=
+Definition fC_d {T U A} (f : T -> U -> A -> A) (rA : A -> A -> Prop)  :=
   forall k1 v1 k2 v2 a, rA (f k1 v1 (f k2 v2 a)) (f k2 v2 (f k1 v1 a)).
 
-Definition fcomp_d {U A} (f : T -> U -> A -> A) (rA : A -> A -> Prop) :=
+Definition fcomp_d {T U A} (f : T -> U -> A -> A) (rA : A -> A -> Prop) :=
   forall k v a1 a2, rA a1 a2 -> rA (f k v a1) (f k v a2).
 
-Lemma L {U A} (f : T -> U -> A -> A) (rA : A -> A -> Prop) m x0 bds :
+Lemma L {U A} (f : MO.key -> U -> A -> A) rA m x0 bds :
   `{Equivalence rA} ->
   fP_d f rA -> fC_d f rA -> fcomp_d f rA ->
-  IsBindings m bds ->
-  rA (fold f m x0) (foldr (fun kv a => f kv.1 kv.2 a) x0 bds).
+  MO.IsBindings m bds ->
+  rA (MO.fold f m x0) (foldr (fun kv a => f kv.1 kv.2 a) x0 bds).
 Proof.
 move=> rAE fP fC fcomp.
 elim: bds m => [|bd bds ih] m.
-- move/FO.IsBindings0 => eq0_m; rewrite FO.fold_Empty //=.
+- move/IsBindings0 => eq0_m; rewrite fold_Empty //=.
   by apply: eqarefl; apply: rAE.
-case/FO.IsBindingsS=> [sm]; set m' := FO.MO.add _ _ _ => -[? eqm].
-have: rA (fold f m x0) (fold f m' x0).
-- apply: FO.fold_Equal => //.
+case/IsBindingsS=> [sm]; set m' := MO.add _ _ _ => -[? eqm].
+have: rA (MO.fold f m x0) (MO.fold f m' x0).
+- apply: fold_Equal => //.
 move/(eqatrans rAE) => + hbds; apply; rewrite {m eqm}/m'.
-rewrite (FO.fold_add _ fP) //=.
+rewrite (fold_add _ fP) //=.
 exact/fcomp/ih.
 Qed.
+
+Lemma L_all {U} (f : MO.key -> U -> bool) rA m bds :
+  `{Equivalence rA} ->
+  (forall a b c d, rA a b -> rA (a && (f c d)) (b && (f c d))) -> 
+  MO.IsBindings m bds ->
+  rA (MO.all f m) (all (fun x => f x.1 x.2) bds).
+Proof.
+move=> rAE fP bind_bds; apply: (eqatrans rAE (L _ _ _ _ _ bind_bds)) => //.
+- move=> ?? -> ?? -> ??; exact: fP.
+- move=> ?????; rewrite andbAC; exact/fP/fP/(eqarefl rAE).
+- move=> ????; exact: fP.
+- elim: bds {bind_bds} => //=; first exact: (eqarefl rAE).
+  move=> a l ih; rewrite [in X in rA _ X]andbC; exact/fP/ih.
+Qed.
+
+Lemma L_key {U A} (f : MO.key -> A -> A) rA (m : MO.t U) bds x0:
+  `{Equivalence rA} ->
+  `{Proper (eq ==> rA ==> rA) f} ->
+  (forall k k' a, rA (f k (f k' a)) (f k' (f k a))) ->
+  (forall k a a', rA a a' -> rA (f k a) (f k a')) ->
+  perm_eq bds (unzip1 (MO.elements m)) ->
+  rA (MO.fold (fun k _ a => f k a) m x0) (foldr f x0 bds).
+Proof.
+move=> rAE fP fC fcomp perm_bds.
+case: (makeBinding perm_bds) => B unzip_B bind_B.
+apply: (eqatrans rAE (L _ rAE _ _ _ bind_B)).
+- move=> ?? -> _ _ _ ??; exact: fP.
+- move=> ?????; exact: fC.
+- move=> ????; exact: fcomp.
+- rewrite -{}unzip_B; elim: B {bind_B}; first exact: (eqarefl rAE).
+  move=> a l ih /=; exact/fcomp/ih.
+Qed.
+
+End Fold.
 
 End MapFold.

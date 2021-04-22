@@ -24,8 +24,8 @@ End Label.
 Module Graph (O : Sig) (L : Label).
 
 Module MF := MapFold O.
-Module Map := MF.FO.MO.
-Module Keys := MF.FO.MO.OT.
+Module Map := MF.MO.
+Module Keys := Map.OT.
 Module FSet := FSetAVL.Make(Keys).
 
 Section Defs.
@@ -84,11 +84,16 @@ Definition vertex_all f G :=
 Definition neighbour_all f G v :=
   neighbour_fold (fun k b => b && f k) v G true.
 
-Definition vertex_list (G : t) := unzip1 (Map.elements G).
+Definition adj_list (G : t) := Map.elements G.
+Definition vertex_list (G : t) := (unzip1 (Map.elements G)).
 
 End Defs.
 
 Section Lemmas.
+
+Lemma adj_listP (G : t) : Map.IsBindings G (adj_list G).
+Proof.
+Admitted.
 
 Section VertexFold.
 
@@ -131,6 +136,14 @@ Lemma vertex_all_eq f (G : t) vtxs:
   Map.IsBindings G vtxs ->
   (vertex_all f G) = (all (fun x => f x.1 x.2) vtxs).
 Proof. by move=> ?; apply: vertex_allE => //; move=> ???? ->. Qed.
+
+Lemma vertex_fold_eq_key A (f : Map.key -> A -> A) (G : t) a vtxs:
+  perm_eq vtxs (vertex_list G) ->
+  (forall p q a', (f p (f q a')) = (f q (f p a'))) ->
+  (vertex_fold (fun k _ x => f k x) G a) = foldr f a vtxs.
+Proof.
+Admitted.
+
 
 
 End VertexFold.

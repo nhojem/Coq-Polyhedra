@@ -190,22 +190,9 @@ Lemma eqv_struct_consistent : eqv_graph ->
   PolyAlgorithm.struct_consistent n G1 = RefAlgorithm.struct_consistent n G2.
 Proof.
 move=> eqv_G12; rewrite /PA.struct_consistent /RA.struct_consistent.
-rewrite (PG.vertex_all_eq _ (PG.assoc_listP G1)).
-rewrite (RG.vertex_all_eq _ (RG.assoc_listP G2)).
+rewrite (PG.vertex_all_eq _ (PG.adj_listP G1)).
+rewrite (RG.vertex_all_eq _ (RG.adj_listP G2)).
 rewrite /PA.neighbour_condition /RA.neighbour_condition.
-
-
-move=> G1_eqv_G2; rewrite /PA.struct_consistent /PG.vertex_all.
-rewrite (@PG.vertex_foldE _ _ G1 _ (unzip1 (PG.adjacency_list G1))); first last => //.
-- by case => //= ??; rewrite andbC.
-- admit.
-- have ->:
-  (fun x =>  andb^~ (PA.neighbour_condition n G1 x)) =
-  (fun x => andb^~ (RA.neighbour_condition n G2 x)) by admit.
-  rewrite -(@RG.vertex_foldE _ _ G2) => //.
-- admit.
-- admit.
-- admit.
 Admitted.
 
 End GraphStructure.

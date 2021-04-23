@@ -92,8 +92,7 @@ End Defs.
 Section Lemmas.
 
 Lemma adj_listP (G : t) : Map.IsBindings G (adj_list G).
-Proof.
-Admitted.
+Proof. exact: MF.IsBindingsP. Qed.
 
 Section VertexFold.
 
@@ -112,15 +111,7 @@ Lemma vertex_allE f rA (G:t) vtxs:
   (forall a b c d, rA a b -> rA (a && (f c d)) (b && (f c d))) -> 
   Map.IsBindings G vtxs ->
   rA (vertex_all f G) (all (fun x => f x.1 x.2) vtxs).
-Proof.
-move=> rAE fP bind_vtxs.
-apply: (eqatrans rAE (vertex_foldE _ _ _ _ _ bind_vtxs)) => //.
-- move => ?? -> ?? -> ??; exact: fP.
-- move=> ?????; rewrite andbAC; apply/fP/fP/(eqarefl rAE).
-- move=> ????; exact: fP.
-- elim: vtxs {bind_vtxs} => //=; first exact: (eqarefl rAE).
-  by move=> a l ih; rewrite [in X in rA _ X]andbC; apply/fP/ih.
-Qed.
+Proof. exact: MF.L_all. Qed. 
 
 Lemma vertex_fold_eq A f (G : t) (a : A) vtxs:
   Map.IsBindings G vtxs ->
@@ -137,14 +128,33 @@ Lemma vertex_all_eq f (G : t) vtxs:
   (vertex_all f G) = (all (fun x => f x.1 x.2) vtxs).
 Proof. by move=> ?; apply: vertex_allE => //; move=> ???? ->. Qed.
 
-Lemma vertex_fold_eq_key A (f : Map.key -> A -> A) (G : t) a vtxs:
+Lemma vertex_fold_key {A} rA (f : Map.key -> A -> A) (G : t) a vtxs:
+  `{Equivalence rA} ->
+  `{Proper (eq ==> rA ==> rA) f} ->
+  (forall k k' a, rA (f k (f k' a)) (f k' (f k a))) ->
+  (forall k a a', rA a a' -> rA (f k a) (f k a')) ->
   perm_eq vtxs (vertex_list G) ->
-  (forall p q a', (f p (f q a')) = (f q (f p a'))) ->
-  (vertex_fold (fun k _ x => f k x) G a) = foldr f a vtxs.
+  rA (vertex_fold (fun k _ x => f k x) G a) (foldr f a vtxs).
+Proof. exact: MF.L_key. Qed.
+
+Lemma vertex_fold_eq_key {A} (f : Map.key -> A -> A) (G : t) a vtxs:
+  (forall k k' a, (f k (f k' a)) = (f k' (f k a))) ->
+  perm_eq vtxs (vertex_list G) ->
+  vertex_fold (fun k _ x => f k x) G a = foldr f a vtxs.
+Proof. by move=> ??; apply: vertex_fold_key => // ??? ->. Qed.
+
+Lemma neighbour_foldE {A} rA (f : Map.key -> A -> A) (G : t) a neis v:
+  mem_vertex v G ->
+  `{Equivalence rA} ->
+  (forall k k' a, rA (f k (f k' a)) (f k' (f k a))) ->
+  (forall k a a', rA a a' -> rA (f k a) (f k a')) ->
+  perm_eq neis (oapp FSet.elements [::] (neighbours v G)) ->
+  rA (neighbour_fold f v G a) (foldr f a neis).
 Proof.
+case/Map.mem_2/MF.elements_in_iff; case => l s ina.
+move: (Map.find_1 (Map.elements_2 ina)).
+rewrite /neighbour_fold /neighbours => -> /=.
 Admitted.
-
-
 
 End VertexFold.
 

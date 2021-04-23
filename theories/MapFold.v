@@ -1,6 +1,7 @@
 (* -------------------------------------------------------------------- *)
 (* ------- *) Require Import FMaps FMapAVL.
 From mathcomp Require Import all_ssreflect.
+Require Import Classes.RelationClasses.
 
 Open Scope order_scope.
 
@@ -140,6 +141,17 @@ Module MapFold (O : Sig).
     - by rewrite remove_neq_o // hbds /= (negbTE neqP).
   Qed.
 
+Lemma IsBindingsP {U} (m : MO.t U):
+  MO.IsBindings m (MO.elements m).
+Proof.
+split => // k; rewrite elements_o; elim: (MO.elements m) => //= a l ih.
+case: a => a1 a2 /=; case/boolP: (a1 == k).
+- by move/eqP => -> /=; apply/ifT; rewrite /eqb; case: (eq_dec k k).
+- rewrite eq_sym -ih => /eqP kna1; apply: ifF.
+  by rewrite /eqb; case: (eq_dec k a1).
+Qed.
+
+
 Lemma makeBinding {U} (m: MO.t U) keys:
   perm_eq keys (unzip1 (MO.elements m)) ->
   exists2 l, unzip1 l = keys & MO.IsBindings m l.
@@ -172,7 +184,7 @@ Qed.
 
 Section Fold. 
 (* -------------------------------------------------------------------- *)
-Require Import Classes.RelationClasses.
+
 
 Definition fP_d {T U A} (f : T -> U -> A -> A) rA :=
   `{Proper (eq ==> eq ==> rA ==> rA) f}.

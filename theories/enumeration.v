@@ -16,89 +16,12 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-(* Definition foo (L1 L2 : seq nat) := match L1, L2 with
-  |[::], _ => Some true
-  |_ , [::] => Some false
-  |_, _ => None
-end.
-
-Parameter L: seq nat.
-Check erefl: foo [::] L = Some true.
-Fail Check erefl: foo L [::] = Some false.
-  *)
-
-(* Module Bitseq_as_UOT <: UsualOrderedType.
-Definition t := bitseq.
-Definition eq := @eq bitseq.
-Definition eq_refl := @Coq.Init.Logic.eq_refl t.
-Definition eq_sym := @Coq.Init.Logic.eq_sym t.
-Definition eq_trans := @Coq.Init.Logic.eq_trans t.
-Fixpoint bitseq_cmp (x y : bitseq) : comparison :=
-  match x, y with
-  |[::], [::] => Eq
-  |[::], _ => Lt
-  |_, [::] => Gt
-  |true::_, false::_ => Gt
-  |false::_, true::_ => Lt
-  |_::tx, _::ty => bitseq_cmp tx ty
-  end.
-
-Definition bitseq_lt (x y: bitseq) : Prop := (bitseq_cmp x y) = Lt.
-
-Definition lt:= bitseq_lt.
-
-Lemma lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
-Proof.
-move=> + y; elim: y => /=.
-- by case => //=; case.
-- case => /= ty IH [|[] tx] [|[] tz] //=; exact: IH.
-Qed.
-
-Lemma lt_not_eq x : forall y, lt x y -> ~ eq x y.
-Proof.
-elim: x => [|hx tx IH] [|hy ty] //=.
-by case: hx; case: hy => // /IH /eqP txnty; apply/eqP; rewrite eqseq_cons. 
-Qed.
-
-
-Program Definition compare x y : OrderedType.Compare lt eq x y :=
-  match (bitseq_cmp x y) with
-  |Lt => OrderedType.LT _
-  |Eq => OrderedType.EQ _
-  |Gt => OrderedType.GT _
-  end.
-
-
-Next Obligation. by []. Qed.
-Next Obligation.
-move: y Heq_anonymous; elim: x => [|hx tx IH]. 
-- by case.
-- by case => [|hy ty]; case: hx => //; case: hy => //= /IH ?; congr (_ :: _).
-Qed.
-Next Obligation.
-move: y Heq_anonymous; elim x => [|hx tx IH].
-- by case.
-- by case => // hy ty; case: hx; case: hy => //= /IH;
-  rewrite /lt /bitseq_lt /=.
-Qed.
-
-
-Lemma eq_dec x y : {(eq x y)} + {(~ eq x y)}.
-Proof. rewrite /eq; exact: (Bool.reflect_dec _ _ (@eqP _ x y)). Qed.
-
-End Bitseq_as_UOT.
-Module BM := FMapAVL.Make(Bitseq_as_UOT).
-Module BF := FSetAVL.Make(Bitseq_as_UOT). *)
-
 (* --------------------------------------------------------------------------------------------------- *)
 
 Module Type Prerequisite.
 Parameters (U L : Type).
 (* L is the type of linear equations, U is a vector space*)
 Parameters sat_ineq sat_eq: L -> U -> bool.
-(* Parameter extract_matrix : seq L -> (seq R).
-(*inverses A B checks if B = transpose of A^-1*)
-Parameter inverses : seq U -> seq U -> bool. *)
 
 End Prerequisite.
 
@@ -141,11 +64,8 @@ Definition vtx_mask (v : vertex) := v.1.
 Definition vtx_point (v : vertex) := v.2. *)
 
 Definition vertex_consistent :=
-  let f := fun masq v b =>
-    if b is false then false else
-    let: (x, _) := v in
-    mask_eq masq x && sat_Po x
-  in AlgoGraph.vertex_fold f G true.
+  let f masq x := mask_eq masq x.1 && sat_Po x.1
+  in AlgoGraph.vertex_all f G.
 
 Fixpoint inter_card (p q : bitseq) :=
   match p,q with

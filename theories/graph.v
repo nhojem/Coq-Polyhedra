@@ -26,7 +26,7 @@ Module Graph (O : Sig) (L : Label).
 Module MF := MapFold O.
 Module Map := MF.MO.
 Module Keys := Map.OT.
-Module FSet := FSetAVL.Make(Keys).
+Module FSet := MF.FSet.
 
 Section Defs.
 
@@ -86,6 +86,8 @@ Definition neighbour_all f G v :=
 
 Definition adj_list (G : t) := Map.elements G.
 Definition vertex_list (G : t) := (unzip1 (Map.elements G)).
+Definition neighbour_list (G : t) v :=
+  oapp FSet.elements [::] (neighbours v G).
 
 End Defs.
 
@@ -93,6 +95,52 @@ Section Lemmas.
 
 Lemma adj_listP (G : t) : Map.IsBindings G (adj_list G).
 Proof. exact: MF.IsBindingsP. Qed.
+
+Lemma uniq_vtx_list (G : t) : uniq (vertex_list G).
+Proof. exact: MF.uniq_keys. Qed.
+
+Lemma vtx_mem_list (G : t) v :
+  v \in vertex_list G = mem_vertex v G.
+Proof.
+apply/(sameP idP)/(iffP idP).
+- move/MF.mem_in_iff => ?; exact/MF.inkeysP.
+- move/MF.inkeysP => ?; exact/MF.mem_in_iff.
+Qed.
+
+Lemma edge_mem_list (G : t) v1 v2:
+  mem_edge v1 v2 G = (v2 \in neighbour_list G v1).
+Proof.
+rewrite /neighbour_list /neighbours /mem_edge.
+case: (Map.find v1 G) => //; case => _ a /=.
+apply/(sameP idP)/(iffP idP).
+- by move/MF.infsetP/FSet.mem_1.
+- by move/FSet.mem_2/MF.infsetP.
+Qed.
+
+Lemma uniq_neighbour_list (G : t) v:
+  uniq (neighbour_list G v).
+Proof.
+rewrite /neighbour_list; case: (neighbours v G)=> //= S.
+exact: MF.uniq_fset.
+Qed.
+
+Lemma nb_neighbours_list (G : t) v:
+  mem_vertex v G ->
+  nb_neighbours v G = Some (size (neighbour_list G v)).
+Proof.
+rewrite /nb_neighbours /neighbour_list /neighbours.
+case/Map.mem_2/MF.elements_in_iff; case => a b ina.
+move: (Map.find_1 (Map.elements_2 ina)) => -> /=.
+congr Some; exact: FSet.cardinal_1.
+Qed.
+
+Lemma nb_neighboursF (G : t) v:
+  ~~ mem_vertex v G ->
+  nb_neighbours v G = None.
+Proof.
+rewrite -vtx_mem_list; move/MF.inkeysP; rewrite /nb_neighbours /neighbours.
+by move/MF.not_find_in_iff => ->.
+Qed.
 
 Section VertexFold.
 
@@ -128,6 +176,11 @@ Lemma vertex_all_eq f (G : t) vtxs:
   (vertex_all f G) = (all (fun x => f x.1 x.2) vtxs).
 Proof. by move=> ?; apply: vertex_allE => //; move=> ???? ->. Qed.
 
+Lemma vertex_allP (f : Map.key -> L.t * FSet.t -> bool)  (G:t):
+  reflect (forall v e, find_vertex v G = Some e -> f v e) (vertex_all f G).
+Proof.
+Admitted.
+
 Lemma vertex_fold_key {A} rA (f : Map.key -> A -> A) (G : t) a vtxs:
   `{Equivalence rA} ->
   `{Proper (eq ==> rA ==> rA) f} ->
@@ -146,22 +199,65 @@ Proof. by move=> ??; apply: vertex_fold_key => // ??? ->. Qed.
 Lemma neighbour_foldE {A} rA (f : Map.key -> A -> A) (G : t) a neis v:
   mem_vertex v G ->
   `{Equivalence rA} ->
+  `{Proper (eq ==> rA ==> rA) f} ->
   (forall k k' a, rA (f k (f k' a)) (f k' (f k a))) ->
   (forall k a a', rA a a' -> rA (f k a) (f k a')) ->
-  perm_eq neis (oapp FSet.elements [::] (neighbours v G)) ->
+  perm_eq neis (neighbour_list G v) ->
   rA (neighbour_fold f v G a) (foldr f a neis).
 Proof.
+rewrite /neighbour_list.
 case/Map.mem_2/MF.elements_in_iff; case => l s ina.
 move: (Map.find_1 (Map.elements_2 ina)).
-rewrite /neighbour_fold /neighbours => -> /=.
-Admitted.
+rewrite /neighbour_fold /neighbours => -> /= rAE fP fC fcomp perm_neis.
+exact: MF.fsetL.
+Qed.
 
+Lemma neighbour_fold_eq {A} (f : Map.key -> A -> A) (G : t) a neis v:
+  mem_vertex v G ->
+  (forall k k' a, (f k (f k' a)) = (f k' (f k a))) ->
+  perm_eq neis (neighbour_list G v) ->
+  neighbour_fold f v G a = foldr f a neis.
+Proof. by move=> ???; apply: neighbour_foldE => // ??? ->. Qed.
+
+Lemma neighbour_foldF {A} (f : Map.key -> A -> A) (G : t) a v:
+  ~~ mem_vertex v G -> neighbour_fold f v G a = a.
+Proof.
+rewrite /neighbour_fold /neighbours.
+case E: (mem_vertex v G) => // _.
+by move/MF.not_mem_in_iff/MF.not_find_in_iff: E => ->.
+Qed.
+
+Lemma neighbour_allF f (G : t) v:
+  ~~ mem_vertex v G -> neighbour_all f G v = true.
+Proof. exact: neighbour_foldF. Qed.
+
+Lemma neighbour_allE rA (f : Map.key -> bool) (G : t) neis v:
+  mem_vertex v G ->
+  `{Equivalence rA} ->
+  (forall a b c, rA a b -> rA (a && (f c)) (b && (f c))) ->
+  perm_eq neis (neighbour_list G v) ->
+  rA (neighbour_all f G v) (all f neis).
+Proof.
+move=> ? rAE fP perm_neis; rewrite /neighbour_all.
+apply: (eqatrans rAE (neighbour_foldE _ _ _ _ _  _ perm_neis)) => //.
+- move=> ?? -> ??; exact: fP.
+- move=> ???; rewrite andbAC; apply/fP/fP; exact: (eqarefl rAE).
+- move=> ???; exact: fP.
+- elim: neis {perm_neis}.
+  + exact: (eqarefl rAE).
+  + move=> a l ih /=; rewrite [X in rA _ X]andbC; exact/fP/ih.
+Qed.
+
+Lemma neighbour_all_eq (f: Map.key -> bool) (G : t) neis v:
+  mem_vertex v G ->
+  perm_eq neis (neighbour_list G v) ->
+  neighbour_all f G v = all f neis.
+Proof. by move=> ??; apply: neighbour_allE => // ??? ->. Qed. 
+
+  
 End VertexFold.
 
-
-
 End Lemmas.
-
 End Graph.
 
 

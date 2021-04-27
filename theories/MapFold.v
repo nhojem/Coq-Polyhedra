@@ -1,5 +1,5 @@
 (* -------------------------------------------------------------------- *)
-(* ------- *) Require Import FMaps FMapAVL.
+(* ------- *) Require Import FMaps FSets FMapAVL FSetAVL.
 From mathcomp Require Import all_ssreflect.
 Require Import Classes.RelationClasses.
 
@@ -67,8 +67,11 @@ End M.
 
 Module MapFold (O : Sig).
   Module MO := M O.
+  Module FSet := FSetAVL.Make(MO.OT).
   Include FMapFacts.Facts(MO).
   Include FMapFacts.Properties(MO).
+  Module FF := FSetFacts.Facts(FSet).
+  Module FP := FSetProperties.Properties(FSet).
 
   Lemma uniq_keys {U} (m : MO.t U) : uniq (unzip1 (MO.elements m)).
   Proof.
@@ -227,6 +230,20 @@ move=> rAE fP bind_bds; apply: (eqatrans rAE (L _ _ _ _ _ bind_bds)) => //.
   move=> a l ih; rewrite [in X in rA _ X]andbC; exact/fP/ih.
 Qed.
 
+Lemma L_allP {U} (f : MO.key -> U -> bool) m :
+  reflect (forall k e, MO.find k m = Some e -> f k e) (MO.all f m).
+Proof.
+rewrite (@L_all _ f eq m _ _ _ (IsBindingsP m)); first by move=> ????->.
+(*TODO : mettre dans un lemme distinct*)
+have : forall k e, MO.find k m = Some e <->
+  k \in unzip1 (MO.elements m) /\
+  ohead [seq kv.2 | kv <- (MO.elements m) & kv.1 == k] = Some e.
+  - case: (IsBindingsP m) => _ find_h k e.
+    split; last by case=> _ <-.
+    move=> find_ve; rewrite -find_ve find_h; split=> //.
+    apply/inkeysP/F.elements_in_iff; exists e; exact/MO.elements_1/MO.find_2.
+Admitted.
+
 Lemma L_key {U A} (f : MO.key -> A -> A) rA (m : MO.t U) bds x0:
   `{Equivalence rA} ->
   `{Proper (eq ==> rA ==> rA) f} ->
@@ -246,5 +263,103 @@ apply: (eqatrans rAE (L _ rAE _ _ _ bind_B)).
 Qed.
 
 End Fold.
+
+Section FSetFold.
+
+Lemma uniq_fset (S : FSet.t) : uniq (FSet.elements S).
+Proof.
+elim: (FSet.elements_3w) => // p l ina _ uniq_l.
+rewrite cons_uniq {}uniq_l andbT; apply/negP.
+apply/contra_not: ina; elim: l => // a l ih.
+rewrite in_cons; case/orP.
+- move/eqP => ->; exact: InA_cons_hd.
+- move/ih; exact: InA_cons_tl.
+Qed.
+
+Lemma infsetP (S : FSet.t) x:
+  reflect (FSet.In x S) (x \in FSet.elements S).
+Proof.
+apply/(iffP idP); rewrite FF.elements_iff.
+-  elim (FSet.elements S) => //= a l ih; rewrite in_cons; case/orP.
+  + move/eqP => ->; exact: InA_cons_hd.
+  + move/ih; exact: InA_cons_tl.
+- elim.
+  + by move=> ?? ->; rewrite in_cons eq_refl.
+  + by move=> ?? _; rewrite in_cons => ->; rewrite orbT.
+Qed.  
+
+  
+
+Lemma fset_map (S : FSet.t) :
+  exists (m : MO.t unit), perm_eq (FSet.elements S) (unzip1 (MO.elements m)) .
+Proof.
+exists (FSet.fold (fun x m => MO.add x tt m) S (MO.empty unit)).
+apply/(@FP.fold_rec _ (fun s a => perm_eq (FSet.elements s) (unzip1 (MO.elements a)))).
+- by move=> ? /FP.elements_Empty ->.
+- move=> x m s s' xS xns /FP.Add_Equal s'_eq_xs /perm_mem perm_sm.
+  apply: uniq_perm; rewrite ?uniq_keys ?uniq_fset //.
+  + move=> y; move: (FF.In_m (erefl y) (s'_eq_xs)) => eq_In.
+    apply/(sameP idP)/(iffP idP).
+    - case/inkeysP/add_in_iff.
+      + move=> xy; apply/infsetP; rewrite eq_In xy.
+        exact: FSet.add_1.
+      + move/inkeysP; rewrite -perm_sm => /infsetP /(FSet.add_2 x) ?.
+        exact/infsetP/eq_In.
+      case/infsetP/eq_In/FF.add_iff.
+      + by move=> <-; apply/inkeysP/add_in_iff; left.
+      + move/infsetP; rewrite perm_sm => /inkeysP ?.
+        by apply/inkeysP/add_in_iff; right.
+Qed.
+
+Lemma fsetL {A} (f: MO.key -> A -> A) rA (S : FSet.t) x0 bds:
+  `{Equivalence rA} ->
+  `{Proper (eq ==> rA ==> rA) f} ->
+  (forall k k' a, rA (f k (f k' a)) (f k' (f k a))) ->
+  (forall k a a', rA a a' -> rA (f k a) (f k a')) ->
+  perm_eq bds (FSet.elements S) ->
+  rA (FSet.fold f S x0) (foldr f x0 bds).
+Proof.
+move=> rAE fP fC fcomp perm_bds.
+case: (fset_map S) => m perm_mS.
+move: (perm_trans perm_bds perm_mS) => /(L_key _ rAE fP fC fcomp).
+move/(_ x0); apply: (eqatrans rAE); move: m perm_mS.
+pose P s a := forall (m : MO.t unit),perm_eq (FSet.elements s) (unzip1 (MO.elements m)) ->
+rA a (MO.fold (fun k : MO.key => fun=> [eta f k]) m x0).
+apply/(@FP.fold_rec _ P); rewrite /P.
+- move=> S' /FP.elements_Empty -> m /(L_key x0 rAE fP fC fcomp) /=.
+  exact: (eqasym rAE).
+- move=> x a S' S'' inxS ninxS' /FP.Add_Equal S''_eq_xS' ih m perm_S''m.
+  have perm_rem: perm_eq (FSet.elements S') (unzip1 (MO.elements (MO.remove x m))).
+  + apply: uniq_perm; rewrite ?uniq_keys ?uniq_fset //.
+    move=> z; apply/(sameP idP)/(iffP idP).
+    - case/inkeysP/remove_in_iff => xnz /inkeysP.
+      rewrite -(perm_mem perm_S''m) => /infsetP.
+      by case/(FF.In_m (erefl z) S''_eq_xS')/FF.add_iff => // /infsetP.
+    - move/infsetP => h; apply/inkeysP/remove_in_iff; split.
+        by apply/eqP; move: h; apply: contraPneq => <-.
+      apply/inkeysP; rewrite -(perm_mem perm_S''m); apply/infsetP.
+      exact/(FF.In_m (erefl z) S''_eq_xS')/FSet.add_2.
+  move/(fP _ _ (erefl x)): (ih _ perm_rem).
+  move=> h; apply/(eqatrans rAE h)/(eqasym rAE).
+  have perm_elts: perm_eq (x :: FSet.elements S') (FSet.elements S'').
+    apply: uniq_perm; rewrite ?cons_uniq ?uniq_fset ?andbT //.
+  - by apply/negP; move/infsetP.
+  - move=> z; rewrite in_cons.
+    apply/(sameP idP)/(iffP idP).
+    + move/infsetP/(FF.In_m (erefl z) S''_eq_xS')/FF.add_iff.
+      case; by [move=> ->; rewrite eq_refl|move/infsetP => ->; rewrite orbT].
+    + case/orP.
+      - move/eqP=> ->; exact/infsetP/(FF.In_m (erefl x) S''_eq_xS')/FSet.add_1.
+      - move/infsetP=> ?; exact/infsetP/(FF.In_m (erefl z) S''_eq_xS')/FSet.add_2.
+  move/(L_key x0 rAE fP fC fcomp): (perm_trans perm_elts perm_S''m) => /= h2.
+  apply/(eqatrans rAE h2)/fcomp/(eqasym rAE).
+  exact: (L_key x0 rAE fP fC fcomp perm_rem).
+Qed.
+
+    
+
+  
+
+End FSetFold.
 
 End MapFold.

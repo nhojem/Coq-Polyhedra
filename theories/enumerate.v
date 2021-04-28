@@ -86,8 +86,6 @@ Qed.
 
 End GraphStructure.
 
-
-Section GraphData.
 Section Refinement.
 
 Context (f : rat -> bigQ).
@@ -141,26 +139,47 @@ Variable G1 : PG.t.
 Variable G2 : BQG.t.
 Context (Po : seq PP.L).
 
-Print BQP.U.
-
 Definition eqv_data := forall v,
-  omap f_U (PG.label v G1) = BQG.label v G2. 
+  omap f_U (PG.label v G1) = BQG.label v G2.
 
-Lemma eqv_vertex_consistent: eqv_data ->
+Lemma eqv_vertex_consistent: (eqv_graph G1 G2) -> eqv_data ->
   PA.vertex_consistent Po G1 =
   BQA.vertex_consistent [seq f_L x | x <- Po] G2.
 Proof.
-rewrite /PA.vertex_consistent /BQA.vertex_consistent => eqv_d.
-rewrite (PG.vertex_all_eq _ (PG.adj_listP G1)).
-rewrite (BQG.vertex_all_eq _ (BQG.adj_listP G2)).
+rewrite /PA.vertex_consistent /BQA.vertex_consistent.
+case=> eqvtx eqedge eqv_d.
 rewrite /PA.mask_eq /PA.sat_Po /BQA.mask_eq /BQA.sat_Po.
 have fun1: forall x,
   PP.sat_eq^~ x =1 (fun y => BQP.sat_eq (f_L y) (f_U x)).
 - by move=> x y; rewrite sat_eq_foo.
 have fun2: forall x, PP.sat_ineq^~ x =1 (fun y=> BQP.sat_ineq (f_L y) (f_U x)).
 - by move=> x y; rewrite sat_ineq_foo.
+apply/(sameP idP)/(iffP idP).
+- move/BQG.vertex_allP => BQGall; apply/PG.vertex_allP => v [l n] PG_find /=.
+  move: (PG.find_mem PG_find); rewrite eqvtx; case/BQG.vtx_memE.
+  case=> l' n' BQG_find; move: (eqv_d v).
+  rewrite /PG.label /BQG.label /PG.find_vertex /BQG.find_vertex in PG_find BQG_find *.
+  rewrite PG_find BQG_find /= => /Some_inj lel'.
+  rewrite (eq_all (fun1 l)) (eq_all (fun2 l)) lel'.
+  move: (BQGall _ _ BQG_find); rewrite -map_mask !all_map.
+  case/andP => all1 all2; apply/andP; split.
+  + by rewrite (@eq_all _ _ (preim [eta f_L] (BigQPrerequisite.sat_eq^~ (l', n').1))).
+  + by rewrite (@eq_all _ _ (preim [eta f_L] (BigQPrerequisite.sat_ineq^~ (l', n').1))).
+- move/PG.vertex_allP => PGall; apply/BQG.vertex_allP => v [l n] BQG_find.
+  move: (BQG.find_mem BQG_find); rewrite -eqvtx; case/PG.vtx_memE.
+  case=> l' n' PG_find; move: (eqv_d v).
+  rewrite /PG.label /BQG.label /PG.find_vertex /BQG.find_vertex in BQG_find PG_find *.
+  rewrite BQG_find PG_find /= => /Some_inj lel'.
+  case/andP: (PGall _ _ PG_find); rewrite -map_mask !all_map.
+  move=> all1 all2; apply/andP; split.
+  + rewrite (@eq_all _ _ (PolyPrerequisite.sat_eq^~ (l', n').1)) //.
+    by move=> ?; rewrite fun1 lel'.
+  + rewrite (@eq_all _ _ (PolyPrerequisite.sat_ineq^~ (l', n').1)) //.
+    by move=> ?; rewrite fun2 lel'.
+Qed.
 
-Admitted.
+  
+  
 
 
 End GraphData.

@@ -117,6 +117,20 @@ apply/(sameP idP)/(iffP idP).
 - by move/FSet.mem_2/MF.infsetP.
 Qed.
 
+Lemma vtx_memE (G : t) v:
+  mem_vertex v G <-> (exists e, find_vertex v G = Some e).
+Proof.
+split.
+- case/Map.mem_2/MF.elements_in_iff => e ina.
+  by move: (Map.find_1 (Map.elements_2 ina)) => ?; exists e.
+- rewrite /find_vertex; case=> e find_vtx; apply/Map.mem_1/MF.in_find_iff.
+  by rewrite find_vtx.
+Qed.
+
+Lemma find_mem (G : t) v e:
+  find_vertex v G = Some e -> mem_vertex v G.
+Proof. by rewrite /mem_vertex MF.mem_find_b /find_vertex => ->. Qed.
+
 Lemma uniq_neighbour_list (G : t) v:
   uniq (neighbour_list G v).
 Proof.
@@ -178,8 +192,7 @@ Proof. by move=> ?; apply: vertex_allE => //; move=> ???? ->. Qed.
 
 Lemma vertex_allP (f : Map.key -> L.t * FSet.t -> bool)  (G:t):
   reflect (forall v e, find_vertex v G = Some e -> f v e) (vertex_all f G).
-Proof.
-Admitted.
+Proof. exact: MF.L_allP. Qed.
 
 Lemma vertex_fold_key {A} rA (f : Map.key -> A -> A) (G : t) a vtxs:
   `{Equivalence rA} ->

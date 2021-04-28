@@ -185,6 +185,16 @@ elim: keys m => //=.
   + by move/eqP => ?; case: bind_L => _ /(_ k) <-; rewrite F.remove_neq_o.
 Qed.
 
+Lemma elts_bind {T} (m : MO.t T) k e: MO.find k m = Some e <->
+  k \in unzip1 (MO.elements m) /\
+  ohead [seq kv.2 | kv <- (MO.elements m) & kv.1 == k] = Some e.
+Proof.
+case: (IsBindingsP m) => _ find_h.
+split; last by case=> _ <-.
+move=> find_ve; rewrite -find_ve find_h; split=> //.
+apply/inkeysP/F.elements_in_iff; exists e; exact/MO.elements_1/MO.find_2.
+Qed.
+
 Section Fold. 
 (* -------------------------------------------------------------------- *)
 
@@ -234,15 +244,28 @@ Lemma L_allP {U} (f : MO.key -> U -> bool) m :
   reflect (forall k e, MO.find k m = Some e -> f k e) (MO.all f m).
 Proof.
 rewrite (@L_all _ f eq m _ _ _ (IsBindingsP m)); first by move=> ????->.
-(*TODO : mettre dans un lemme distinct*)
-have : forall k e, MO.find k m = Some e <->
-  k \in unzip1 (MO.elements m) /\
-  ohead [seq kv.2 | kv <- (MO.elements m) & kv.1 == k] = Some e.
-  - case: (IsBindingsP m) => _ find_h k e.
-    split; last by case=> _ <-.
-    move=> find_ve; rewrite -find_ve find_h; split=> //.
-    apply/inkeysP/F.elements_in_iff; exists e; exact/MO.elements_1/MO.find_2.
-Admitted.
+apply/(iffP idP).
+- move: (uniq_keys m) => + + + + /elts_bind.
+  elim : (MO.elements m); first by move=> _ _ ?? [].
+  move=> a l ih /= /andP [anl uniq_l] /andP [f_a all_l] k e [].
+  rewrite in_cons=> /orP [].
+  + by move/eqP => ->; rewrite eq_refl /= => /Some_inj <-.
+  + move=> kl.
+    have ->: (a.1 == k) = false by move: anl; apply: contraNF => /eqP ->.
+    move=> bindk; exact: ih.
+- move=> bind_f.
+  have: forall k e, k \in unzip1 (MO.elements m) /\
+  ohead [seq kv.2 | kv <- (MO.elements m) & kv.1 == k] = Some e -> f k e.
+    move=> k e /elts_bind; exact: bind_f.
+  elim: (MO.elements m) (uniq_keys m) => //.
+  move=> /= a l ih /andP [anl uniq_l] bind_al; apply/andP; split.
+  + by apply: bind_al; rewrite in_cons eq_refl.
+  + apply: ih => // k e [kl bind_k]; apply: bind_al.
+    rewrite in_cons kl orbT; split=> //.
+    have ->: (a.1 == k) = false by move: anl; apply: contraNF => /eqP ->.
+    by [].
+Qed.
+
 
 Lemma L_key {U A} (f : MO.key -> A -> A) rA (m : MO.t U) bds x0:
   `{Equivalence rA} ->

@@ -92,8 +92,12 @@ Context (r : rat -> bigQ -> bool).
 
 Hypothesis r_inj : forall x y a b, x = y -> (a == b)%bigQ -> r x a -> r y b.
 Hypothesis r_0 : r 0 0%bigQ.
-Hypothesis r_mul : forall x y a b, r (x * y) (BigQ.mul_norm a b).
-Hypothesis r_add : forall x y a b, r (x + y) (BigQ.add_norm a b).
+Hypothesis r_mul : forall x y a b, r x a -> r y b ->
+  r (x * y) (BigQ.mul_norm a b).
+Hypothesis r_add : forall x y a b, r x a -> r y b ->
+  r (x + y) (BigQ.add_norm a b).
+Hypothesis r_eq : forall x y a b, r x a -> r y b ->
+  x = y <-> (a == b)%bigQ.
 
 Definition r_rV (n : nat) (v : 'rV[rat]_n) (s : seq bigQ) :=
   (size s == n) && (all (fun k => r (v 0 k) (nth 0%bigQ s k)) (enum 'I_n)).
@@ -114,6 +118,8 @@ Definition r_Po (PPo : seq PP.L) (BQPo : seq BQP.L) :=
 (*return the transpose to make further computations easier*)
 
 Section Proofs.
+
+Section ParametricRelations.
 
 Add Relation bigQ BigQ.eq
   reflexivity proved by (@Equivalence_Reflexive _ _ BigQ.eq_equiv)
@@ -190,6 +196,10 @@ move=> y s1 s2 eq_s12; rewrite /r_cV (eq_seq_BQ_size eq_s12); congr andb.
 apply: eq_all=> k; move: (eq_seq_BQ_nth k eq_s12); exact: r_morph.
 Qed.
 
+End ParametricRelations.
+
+Section RefinementProofs.
+
 Lemma r_rVP {n} (v : 'rV_n) s:
   reflect (size s = n /\ (forall k : 'I_n, r (v 0 k) (nth 0%bigQ s k)))
   (r_rV v s).
@@ -205,43 +215,148 @@ Lemma r_rV0 (v : 'rV_0) s:
   r_rV v s -> s = [::].
 Proof. by case/r_rVP => /size0nil. Qed.
 
+Lemma r_rVnil {n} (v : 'rV_n):
+  r_rV v [::] -> n = 0%nat.
+Proof. by case/r_rVP => /=. Qed.
+
 Lemma r_rVS {n} (v : 'rV_(n.+1)) c s:
-  r_rV v (c :: s) -> r (v 0 0) c /\ exists v' : 'rV_n, r_rV v' s.
+  r_rV v (c :: s) -> r (v 0 0) c /\
+  exists2 v' : 'rV_n, r_rV v' s & forall k, v 0 (lift ord0 k) = v' 0 k.
 Proof.
 move=> r_v_cs; split.
 - by case/r_rVP : r_v_cs => _ /(_ 0).
 - exists (\row_(i < n) v 0 (lift ord0 i)).
-  case/r_rVP : r_v_cs => /eqP /=; rewrite eqSS => sizes all_ISn.
-  apply/r_rVP; split; first exact/eqP.
-  rewrite /=.
+  + case/r_rVP : r_v_cs => /eqP /=; rewrite eqSS => sizes all_ISn.
+    apply/r_rVP; split; first exact/eqP.
+    move=> k; rewrite mxE; exact:(all_ISn (lift ord0 k)).
+  + by move=> k; rewrite mxE.
+Qed.
+
+Lemma r_rV_eq {n} (u v: 'rV_n) s t:
+  r_rV u s -> r_rV v t -> (u = v <-> BQP.eq_seq_bigQ s t).
+Proof.
+elim: n s t u v.
+- move=> ???? /r_rV0 -> /r_rV0 ->; split=> // _.
+  by apply/matrixP=> ? j; move:(ord0_false j).
+- move=> n ih; case; first by move=>??? /r_rVnil.
+  move=> hs ts; case; first by move=> ?? _ /r_rVnil.
+  move=> ht tt u v /r_rVS [r_hs [u' r_u' uu']] /r_rVS [r_ht [v' r_v' vv']].
+  rewrite /=; split.
+  + move/matrixP => uv; apply/andP; split.
+    - exact/bigQ_eqP/(r_eq r_hs r_ht)/uv.
+    - apply/(ih _ _ _ _ r_u' r_v')/matrixP=> i j.
+      by rewrite (ord1_eq0 i) -uu' -vv' uv.
+  + case/andP=> /bigQ_eqP /(r_eq r_hs r_ht) uv0 /(ih _ _ _ _ r_u' r_v').
+    move/matrixP=> uv'; apply/matrixP=> i j.
+    rewrite (ord1_eq0 i); case: j=> j jlt.
+    move: (@mem_nth _ ord0 (enum 'I_n.+1) (Ordinal jlt)); rewrite size_enum_ord.
+    move/(_ jlt); rewrite nth_ord_enum enum_ordS in_cons.
+    by case/orP=> [/eqP ->|/mapP [j' j'n ->]] //; rewrite uu' vv'.
+Qed.
 
 
 
+Lemma r_cVtr {n} (c : 'cV_n) s:
+  r_cV c s = r_rV c^T s.
+Proof. by rewrite /r_cV /r_rV; congr andb; apply: eq_all => ?; rewrite mxE. Qed.
+
+Lemma r_cVP {n} (v : 'cV_n) s:
+  reflect (size s = n /\ (forall k : 'I_n, r (v k 0) (nth 0%bigQ s k)))
+  (r_cV v s).
+Proof.
+rewrite r_cVtr; apply/(iffP (r_rVP v^T s));case=> ? h; split=> // k.
+- by move: (h k); rewrite mxE.
+- by rewrite mxE.
+Qed.
+
+Lemma r_cV0 (v : 'cV_0) s:
+  r_cV v s -> s = [::].
+Proof. rewrite r_cVtr; exact: r_rV0. Qed.
+
+Lemma r_cVnil {n} (v : 'cV_n):
+  r_cV v [::] -> n = 0%nat.
+Proof. by case/r_cVP => /=. Qed.
+
+
+Lemma r_cVS {n} (v : 'cV_(n.+1)) c s:
+  r_cV v (c :: s) -> r (v 0 0) c /\
+  exists2 v' : 'cV_n, r_cV v' s & forall k, v (lift ord0 k) 0 = v' k 0.
+Proof.
+rewrite r_cVtr; case/r_rVS; rewrite mxE => -> [v' r_rV' v_k]; split=> //.
+exists v'^T; rewrite ?r_cVtr ?trmxK //.
+by move=> k; rewrite mxE -v_k mxE.
+Qed.
+
+Lemma r_LP (e : PP.L) (s : BQP.L):
+  reflect (r_rV e.1 s.1 /\ r_rV e.2 s.2) (r_L e s).
+Proof. exact/andP. Qed.
+
+Lemma r_UP (x : PP.U) (s : BQP.U):
+  reflect 
+  ((size s = (PP.m).+1) /\ forall k, r_cV (col k x) (nth [::] s k))
+  (r_U x s).
+Proof.
+apply/(iffP idP); rewrite /r_U.
+- case/andP => /eqP -> /allP in_xs; split=> // k; apply: in_xs.
+  by apply/(nthP k); exists k; rewrite ?size_enum_ord ?nth_ord_enum.
+- case=> -> in_xs; rewrite eq_refl /=; apply/allP=> k k_ord; exact: in_xs.
+Qed.
+
+End RefinementProofs.
+
+Section AlgorithmEquiv.
 
 Lemma bigQ_dotE n (x : 'rV_n) (y : 'cV_n) (a b : seq bigQ):
   r_rV x a -> r_cV y b ->
   r '[x^T , y] (BQP.bigQ_dot a b).
 Proof.
-Admitted.
+rewrite /BQP.bigQ_dot.
+elim: n x y a b.
+- by move=> x y a b /r_rV0 -> /r_cV0 -> /=; rewrite /vdot big_ord0.
+- move=> n ih x y; case => [|ha ta]; first by move=> ? /r_rVnil.
+  case=> [|hb tb]; first by move=> _ /r_cVnil.
+  case/r_rVS=> r_ha [x' r_ta xx'].
+  case/r_cVS=> r_hb [y' r_tb yy'].
+  rewrite /= /vdot big_ord_recl addrC.
+  apply: r_add; rewrite ?mxE ?r_mul //=.
+  suff ->: \sum_(i < n) x^T (lift ord0 i) 0 * y (lift ord0 i) 0 =
+    '[x'^T, y'] by exact: ih.
+  by rewrite /vdot; apply: eq_big => //= i _; rewrite !mxE xx' yy'.
+Qed. 
+
+
 
 Lemma bigQ_productE (l : PP.L) (u : PP.U) (bl : BQP.L) (bu : BQP.U) :
   r_L l bl -> r_U u bu ->
   r_rV (l.1 *m u) [seq BQP.bigQ_dot bl.1 u0 | u0 <- bu].
 Proof.
-Admitted.
+case/r_LP=> r_l1 r_l2 /r_UP [size_u r_u]; apply/r_rVP; split.
+- by rewrite size_map.
+- move=> k; rewrite (nth_map [::]) ?size_u // /mulmx mxE.
+  suff ->: \sum_j l.1 0 j * u j k = '[l.1^T, col k u] by exact: bigQ_dotE.
+  by apply: eq_big=> // ? _; rewrite !mxE.
+Qed.
  
 
 Lemma sat_ineqE (l : PP.L) (u: PP.U) bl bu:
   r_L l bl -> r_U u bu ->
   PP.sat_ineq l u = BQP.sat_ineq bl bu.
-Proof.
+
+  Proof.
 Admitted.
 
 Lemma sat_eqE (l : PP.L) (u: PP.U) bl bu :
   r_L l bl -> r_U u bu ->
   PP.sat_eq l u = BQP.sat_eq bl bu.
 Proof.
-Admitted.
+case: l; case: bl=> a b a0 b0 r_l r_u.
+move: (bigQ_productE r_l r_u)=> /= r_prod.
+case/r_LP: (r_l) => /= _ r_b.
+rewrite /PP.sat_eq /BQP.sat_eq /sat_eq /=.
+apply/(sameP idP)/(iffP idP).
+- move=> ?; exact/eqP/(r_rV_eq r_prod r_b).
+- move/eqP=> ?; exact/(r_rV_eq r_prod r_b).
+Qed.
 
 Lemma r_Po_nilL BQPo:
   reflect (BQPo = [::]) (r_Po [::] BQPo).
@@ -334,6 +449,7 @@ Qed.
 
 
 End GraphData.
+End AlgorithmEquiv.
 End Proofs.
 
 End Refinement.

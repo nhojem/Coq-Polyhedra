@@ -97,8 +97,9 @@ Definition L := (seq bigQ * seq bigQ)%type.
 (*e : L as form (b, a), with size b = 1 + m, representing the inequation a * x <=_lex b*)
 
 Definition bigQ_dot (x y : seq bigQ) : bigQ :=
-  let aux := (fun res p => BigQ.add_norm res (BigQ.mul_norm p.1 p.2)) in
-  foldl aux 0%bigQ (zip x y).
+  let aux := (fun p res => BigQ.add_norm res (BigQ.mul_norm p.1 p.2)) in
+  foldr aux 0%bigQ (zip x y).
+(* QC: changed foldl into foldr. Mandatory ?*)
 
 Fixpoint lex_order (x y : seq bigQ) :=
   match x, y with
@@ -118,15 +119,14 @@ Definition sat_ineq (c : L) (x : U) :=
 
 Fixpoint eq_seq_bigQ (x y : seq bigQ) :=
   match x, y with
-  |[::], [::] => true
-  |hx::tx, hy::ty =>
-    if (hx ?= hy)%bigQ is Eq then eq_seq_bigQ tx ty else false 
-  |_, _ => false
+    |[::], [::] => true
+    |a::l, b::l' => BigQ.eqb a b && eq_seq_bigQ l l'
+    |_, _ => false
   end.
   
 
 Definition sat_eq (c : L) (x : U) :=
-  let: (b, a) := c in
+  let: (a, b) := c in
   let ax := map (fun l => bigQ_dot a l) x in
   eq_seq_bigQ ax b.
 

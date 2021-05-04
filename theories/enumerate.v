@@ -98,6 +98,8 @@ Hypothesis r_add : forall x y a b, r x a -> r y b ->
   r (x + y) (BigQ.add_norm a b).
 Hypothesis r_eq : forall x y a b, r x a -> r y b ->
   x = y <-> (a == b)%bigQ.
+Hypothesis r_lt: forall x y a b, r x a -> r y b ->
+  x < y <-> (a < b)%bigQ.
 
 Definition r_rV (n : nat) (v : 'rV[rat]_n) (s : seq bigQ) :=
   (size s == n) && (all (fun k => r (v 0 k) (nth 0%bigQ s k)) (enum 'I_n)).
@@ -336,14 +338,40 @@ case/r_LP=> r_l1 r_l2 /r_UP [size_u r_u]; apply/r_rVP; split.
   suff ->: \sum_j l.1 0 j * u j k = '[l.1^T, col k u] by exact: bigQ_dotE.
   by apply: eq_big=> // ? _; rewrite !mxE.
 Qed.
- 
+
+Lemma bigQ_lexE {n} (u v : 'rV_n) p q:
+  r_rV u p -> r_rV v q -> (u <=lex v) = BQP.lex_order p q.
+Proof.
+elim: n u v p q.
+- move=> ???? /r_rV0 -> /r_rV0 -> /=; apply: lex_lev.
+  by move=> j; move: (ord0_false j).
+- move=> n ih u v; case; first by move=> ? /r_rVnil.
+  move=> hp tp; case; first by move=> ? /r_rVnil.
+  move=> hq tq /= /r_rVS [r_hp [u' r_tp uu']] /r_rVS [r_hq [v' r_tq vv']].
+  case: (BigQ.compare_spec hp hq).
+  + move=> eq_hpq; rewrite -(ih u' v') // /leqlex enum_ordS /= lt_neqAle.
+    have -> /=: (u 0 ord0 == v 0 ord0) by exact/eqP/(r_eq r_hp r_hq).
+    elim: (enum 'I_n) => //= a l ih_eq.
+    by rewrite uu' vv' ih_eq.
+  + move=> ?; rewrite /leqlex enum_ordS /=.
+    suff ->: u 0 ord0 < v 0 ord0 by [].
+    exact/(r_lt r_hp r_hq).
+  + move=> ?; rewrite /leqlex enum_ordS /=.
+    suff lt_vu0: v 0 ord0 < u 0 ord0.
+    - by rewrite (lt_gtF lt_vu0) eq_sym (lt_eqF lt_vu0).
+    exact/(r_lt r_hq r_hp).
+Qed.
 
 Lemma sat_ineqE (l : PP.L) (u: PP.U) bl bu:
   r_L l bl -> r_U u bu ->
   PP.sat_ineq l u = BQP.sat_ineq bl bu.
+Proof.
+move=> rl ru; move: (bigQ_productE rl ru).
+case: l rl ru; case: bl => ???? /r_LP /= [rL1 rL2] rU /= r_prod.
+rewrite /PP.sat_ineq /BQP.sat_ineq /sat_ineq /=.
+exact: bigQ_lexE.
+Qed.
 
-  Proof.
-Admitted.
 
 Lemma sat_eqE (l : PP.L) (u: PP.U) bl bu :
   r_L l bl -> r_U u bu ->

@@ -113,7 +113,7 @@ Fixpoint lex_order (x y : seq bigQ) :=
   end.
 
 Definition sat_ineq (c : L) (x : U) :=
-  let: (b, a) := c in
+  let: (a, b) := c in
   let ax := map (fun l => bigQ_dot a l) x in
   lex_order ax b.
 

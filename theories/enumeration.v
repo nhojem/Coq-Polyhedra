@@ -239,34 +239,9 @@ Definition e_data_0000 : seq (bitseq * bitseq) := [::
 ].
 
 Definition G := Eval native_compute in BigQAlgorithm.AlgoGraph.empty.
-Definition G_test := Eval native_compute in foldr (fun x G=> BigQAlgorithm.AlgoGraph.add_vertex x.1 x.2 G) G
-[::
-   ([:: false; false; false; true; true; true], [:: 
-  [:: 1; 1; 1 ]
-; [:: 0; 0; 0 ]
-; [:: 0; 0; 0 ]
-; [:: 0; 0; 0 ]
-; [:: 1; 0; 0 ]
-; [:: 0; 0; 1 ]
-; [:: 0; 1; 0 ]
-])].
-
-(*Issue from here : G_test2 computation is taking too long*)
-
-Definition G_test2 := Eval native_compute in BigQAlgorithm.AlgoGraph.add_vertex 
-[:: true; false; false; false; true; true]
-[:: 
-  [:: -1; 1; 1 ]
-; [:: -1; 0; 0 ]
-; [:: 0; 0; 0 ]
-; [:: 0; 0; 0 ]
-; [:: 0; 0; 0 ]
-; [:: 0; 0; 1 ]
-; [:: 0; 1; 0 ]
-] G_test. *)
 
 
-(* Definition G_0 :=  Eval native_compute in BigQAlgorithm.AlgoGraph.add_vertices v_data_0000 G.
+Definition G_0 :=  Eval native_compute in BigQAlgorithm.AlgoGraph.add_vertices v_data_0000 G.
 Definition H_0 := BigQAlgorithm.AlgoGraph.add_edges e_data_0000 G_0.
 Definition input := Eval native_compute in H_0.
 
@@ -276,6 +251,7 @@ Definition vtx_output :=
 Definition struct_output :=
     Eval native_compute in bigQ_struct_consistent n input.
 
-End TestExtract.
+Print vtx_output.
+Print struct_output.
 
- *)
+End TestExtract. *)

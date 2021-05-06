@@ -39,12 +39,22 @@ Proof. by apply: lt_trans. Qed.
 Lemma lt_not_eq (x y : t) : lt x y -> ~ (eq x y).
 Proof. by move/lt_eqF/negbT/eqP. Qed.
 
-Definition compare (x y : t) :=
+Program Definition compare (x y : t) : Compare lt eq x y :=
+  if x < y is true then LT _ else if (x == y) is true then EQ _ else GT _.
+Next Obligation. by []. Qed.
+Next Obligation. exact/eqP. Qed.
+Next Obligation.
+  rewrite /lt ltNge le_eqVlt negb_or.
+  by case: (x == y) H0=> // _; case: (x < y) H.
+  Qed.
+
+
+(* Program Definition compare (x y : t) :=
   match ltgtP x y with
-  | RelOrder.ComparelEq eq => EQ (lt := lt) eq
-  | RelOrder.ComparelLt lt => LT lt
-  | RelOrder.ComparelGt gt => GT gt
-  end.
+  | RelOrder.ComparelEq _ => EQ (lt := lt) _
+  | RelOrder.ComparelLt _ => LT _
+  | RelOrder.ComparelGt _ => GT _
+  end. *)
 
 Lemma eq_dec (x y : t) : {eq x y}+{~ eq x y}.
 Proof. by case: (x =P y)=> ?; [left | right]. Qed.
@@ -58,7 +68,7 @@ Module M (O : Sig).
 
   Definition IsBindings {U} (m : t U) (bds : seq.seq (T * U)) :=
     [/\ perm_eq (unzip1 bds) (unzip1 (elements m))
-      & forall k, find k m = ohead [seq kv.2 | kv <- bds & kv.1 == k]].
+      & forall k, find k m = ohead [seq kv.2 | kv <- bds & kv.1 == k]].   
 
   Definition all {U} f (m : t U) :=
     fold (fun k d b => b && f k d) m true.

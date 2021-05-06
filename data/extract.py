@@ -199,7 +199,7 @@ def output(name, m, n, Po, vertices):
             sep  = ' ' if i == 0 else ';'
             line = '; '.join(map(bigq, v[0]))
             line2 = '; '.join(map(bigq, v[1]))
-            print(f'{sep}  ([:: {line}], [::{line2}])', file=stream)
+            print(f'{sep}  ([:: {line2}], [::{line}])', file=stream)
         print('].', file=stream)
         print(file=stream)
         print(f'Definition m : nat := {m}%N.', file=stream)
@@ -290,9 +290,11 @@ def output(name, m, n, Po, vertices):
 
     shutil.copy2(os.path.join(ROOT, 'enumeration.v'), name)
     shutil.copy2(os.path.join(ROOT, 'graph.v'), name)
+    shutil.copy2(os.path.join(ROOT, 'MapFold.v'), name)
 
     with open(_x('_CoqProject'), 'w') as stream:
         print(COQPROJECT_PRELUDE, file=stream)
+        print('MapFold.v', file=stream)
         print('graph.v', file=stream)
         print('enumeration.v', file=stream)
         print('%s_ine.v' % (FNAME,), file=stream)

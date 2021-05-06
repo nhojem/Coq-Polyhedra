@@ -249,8 +249,8 @@ elim: n s t u v.
     - apply/(ih _ _ _ _ r_u' r_v')/matrixP=> i j.
       by rewrite (ord1_eq0 i) -uu' -vv' uv.
   + case/andP=> /bigQ_eqP /(r_eq r_hs r_ht) uv0 /(ih _ _ _ _ r_u' r_v').
-    move/matrixP=> uv'; apply/matrixP=> i j.
-    rewrite (ord1_eq0 i); case: j=> j jlt.
+    move/matrixP=> uv'; apply/rowP=> j.
+    case: j=> j jlt.
     move: (@mem_nth _ ord0 (enum 'I_n.+1) (Ordinal jlt)); rewrite size_enum_ord.
     move/(_ jlt); rewrite nth_ord_enum enum_ordS in_cons.
     by case/orP=> [/eqP ->|/mapP [j' j'n ->]] //; rewrite uu' vv'.
@@ -368,7 +368,7 @@ Lemma sat_ineqE (l : PP.L) (u: PP.U) bl bu:
 Proof.
 move=> rl ru; move: (bigQ_productE rl ru).
 case: l rl ru; case: bl => ???? /r_LP /= [rL1 rL2] rU /= r_prod.
-rewrite /PP.sat_ineq /BQP.sat_ineq /sat_ineq /=.
+(* rewrite /PP.sat_ineq /BQP.sat_ineq /sat_ineq /=. *)
 exact: bigQ_lexE.
 Qed.
 
@@ -380,7 +380,7 @@ Proof.
 case: l; case: bl=> a b a0 b0 r_l r_u.
 move: (bigQ_productE r_l r_u)=> /= r_prod.
 case/r_LP: (r_l) => /= _ r_b.
-rewrite /PP.sat_eq /BQP.sat_eq /sat_eq /=.
+(* rewrite /PP.sat_eq /BQP.sat_eq /sat_eq /=. *)
 apply/(sameP idP)/(iffP idP).
 - move=> ?; exact/eqP/(r_rV_eq r_prod r_b).
 - move/eqP=> ?; exact/(r_rV_eq r_prod r_b).
@@ -474,7 +474,6 @@ apply/(sameP idP)/(iffP idP).
   rewrite -(mask_eqE v rPo rl) -(sat_PoE rPo rl).
   exact: (PGall _ _ PGfind).
 Qed.
-
 
 End GraphData.
 End AlgorithmEquiv.

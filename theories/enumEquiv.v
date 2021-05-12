@@ -15,7 +15,7 @@ Import GRing.Theory Num.Theory.
 
 Open Scope ring_scope.
 
-Section Perturbation.
+Section PolySat.
 
 Context (R : realFieldType) (n m: nat).
 
@@ -23,7 +23,8 @@ Definition sat_ineq (l : 'rV[R]_n * 'rV[R]_(S m)) x : bool :=
   (l.1 *m x) <=lex (l.2).
 Definition sat_eq (l : 'rV[R]_n * 'rV[R]_(S m)) x : bool :=
   (l.1 *m x) == (l.2).
-End Perturbation.
+
+End PolySat.
 
 Module PolyPrerequisite <: Prerequisite.
 Parameters (n m : nat).

@@ -309,12 +309,12 @@ def output(name, m, n, Po, vertices):
         print('list_' + FNAME +'.v', file=stream)
         print('job.v', file=stream)
 
-    sp.check_call(
+    sp.run(
         'coq_makefile -f _CoqProject -o Makefile'.split(),
         cwd = name
     )
 
-    print(f'>>> make TIMED=1 -C {name}')
+    sp.run(f'make TIMED=1 -C {name}'.split())
 
 
 """ with open(_x('job_' + FNAME + '.v'), 'w') as stream:

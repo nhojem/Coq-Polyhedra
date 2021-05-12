@@ -16,6 +16,22 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Section Misc.
+
+Definition card_bitseq (p : bitseq) :=
+  count id p.
+
+Fixpoint inter_card (p q : bitseq) :=
+  match p,q with
+  |[::], [::] => 0%nat
+  |_, [::] => 0%nat
+  |[::], _ => 0%nat
+  |true::p', true::q' => (1 + inter_card p' q')%nat
+  |_::p', _::q' => inter_card p' q'
+  end.
+
+End Misc.
+
 (* --------------------------------------------------------------------------------------------------- *)
 
 Module Type Prerequisite.
@@ -56,15 +72,6 @@ Definition mask_eq (m : bitseq) (x : U):=
 Definition vertex_consistent :=
   let f masq x := mask_eq masq x.1 && sat_Po x.1
   in AlgoGraph.vertex_all f G.
-
-Fixpoint inter_card (p q : bitseq) :=
-  match p,q with
-  |[::], [::] => 0%nat
-  |_, [::] => 0%nat
-  |[::], _ => 0%nat
-  |true::p', true::q' => (1 + inter_card p' q')%nat
-  |_::p', _::q' => inter_card p' q'
-  end.
 
 Definition neighbour_condition I :=
   (AlgoGraph.neighbour_all

@@ -18,7 +18,7 @@ Open Scope ring_scope.
 
 Section Perturbation.
 
-Context {n : nat} (base : base_t[rat,n]).
+Context {n' : nat} (n := n'.+1) (base : base_t[rat,n]).
 
 Definition create_perturbation {m : nat} (b : rat) (k : 'I_m) : 'rV_m.+1 :=
   @row_mx _ _ 1 m (const_mx b) (row k (pid_mx m)).
@@ -68,8 +68,8 @@ Lemma lexi_sat_prebasis (L : lexi_prebasis) : sat_prebasis L.
 Proof. by case/and3P: (lexi_preaxiomP L). Qed.
 
 Lemma lexi_card (L : lexi_prebasis) :
-  card_bitseq L == n.
-Proof. by case/and3P: (lexi_preaxiomP L). Qed.
+  card_bitseq L = n.
+Proof. by apply/eqP; case/and3P: (lexi_preaxiomP L). Qed.
 
 Lemma lexi_eq_prebasis (L: lexi_prebasis) : eq_prebasis L L.
 Proof. by case/and3P: (lexi_preaxiomP L). Qed.
@@ -109,12 +109,29 @@ Definition matrix_of_seqrV {k : nat} {R : realFieldType}
   (matrix_of_seqrV (mask mas (unzip1 base_p)) *m x == 
   matrix_of_seqrV (mask mas (unzip2 base_p))). *)
 
-Lemma lexi_pointP (L : lexi_basis) x:
-  eq_prebasis L x -> x = L.
+Lemma lexi_pointP (L : lexi_basis) M:
+  eq_prebasis L M -> M = L.
 Proof.
-rewrite /eq_prebasis /sat_eq.
-
-
+rewrite /eq_prebasis /sat_eq; set s := mask _ _.
+have sz_s: size s = n by admit.
+pose A := \matrix_(i < n) (s`_i).1.
+pose B := \matrix_(i < n) (s`_i).2.
+move=> h; have eqM: A *m M = B.
+- apply/row_matrixP => i; rewrite row_mul !rowK.
+  apply/eqP; move/allP: h => /(_ s`_i); apply.
+  by rewrite mem_nth // sz_s.
+have eqL: A *m L = B.
+- apply/row_matrixP => i; rewrite row_mul !rowK.
+  apply/eqP; move/allP: (lexi_eq_prebasis L).
+  by move/(_ s`_i); apply; rewrite mem_nth // sz_s.
+have: A *m M = A *m L by rewrite eqM eqL.
+move/(congr1 trmx); rewrite !trmx_mul => /row_free_inj.
+move=> {}h; apply/trmx_inj; apply: h => { eqM eqL B }.
+rewrite row_free_unit unitmx_tr -row_free_unit.
+rewrite -row_leq_rank leq_eqVlt; apply/orP; left.
+apply/eqP/esym; have := lexi_basisP L; rewrite /is_basis.
+rewrite -map_mask -mxrank_gen => /eqP eqn; rewrite -{}[RHS]eqn.
+Admitted.
 
 End LexiBasis.
 

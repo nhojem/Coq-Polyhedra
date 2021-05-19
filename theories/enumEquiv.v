@@ -20,7 +20,7 @@ Section PolySat.
 Context (R : realFieldType) (n m: nat).
 
 Definition sat_ineq (l : 'rV[R]_n * 'rV[R]_(S m)) x : bool :=
-  (l.1 *m x) <=lex (l.2).
+  (l.1 *m x) >=lex (l.2).
 Definition sat_eq (l : 'rV[R]_n * 'rV[R]_(S m)) x : bool :=
   (l.1 *m x) == (l.2).
 

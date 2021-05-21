@@ -29,8 +29,6 @@ Definition perturbation :=
   (fun x: lrel * 'I_(#|`base|) => (x.1.1^T , create_perturbation x.1.2 x.2))
   (zip (enum_fset base) (ord_enum #|`base|)).
 
-(*TODO A-t-on x \in P : {poly base} => x \in perturbation ? Même chose avec des sommets ?*)
-
 End Perturbation.
 
 Section LexiBasis.
@@ -104,7 +102,7 @@ apply/(iffP idP).
 - move/allP=> /= h; apply/row_matrixP => i.
   rewrite row_mul !rowK -!map_mask.
   set s:= mask _ _ in h *.
-  have sz_s : size s = n by
+  have sz_s : size s = n.
   rewrite size_mask ?lexi_size ?base_size -?(lexi_card L).
   move: (ltn_ord i); rewrite -{2}sz_s=> i_lt.
   move/eqP: (h s`_i (mem_nth _ i_lt)).
@@ -167,8 +165,7 @@ End LexiBasis.
 Section LexPivot.
 
 Context {n m: nat} (base_p : seq ('rV[rat]_n * 'rV[rat]_m.+1)).
-Hypothesis base_size: size base_p = m.
-Hypothesis base_uniq : uniq base_p.
+(* Hypothesis base_size: size base_p = m. *)
 
 Context (v : 'M[rat]_(n,m.+1)) (d : 'cV[rat]_n).
 
@@ -242,10 +239,147 @@ case: (ltrgt0P ((b.1 *m d) 0 0)).
   move/allP: sat_v; exact.
 Qed.
 
+End LexPivot.
+
+Section Foo.
+
+Context {n m: nat} (base_p : seq ('rV[rat]_n * 'rV[rat]_m.+1)).
+Hypothesis base_size: size base_p = m.
+Context (L : )
+
+
+
+End Foo.
+
+Section MaxLexBase.
+
+Context {n' : nat} (n := n'.+1) (base : base_t[rat,n]).
+Context (x : 'cV[rat]_n).
+Hypothesis x_poly : x \in 'P(base)%PH.
+
+Definition active_ineq_mask :=
+  [seq (e.1^T *m x) == (const_mx e.2) | e : lrel <- (enum_fset base)].
+
+Definition span_gen  {K : fieldType} {vT : vectType K} (s : seq vT) :=
+  (foldr
+  (fun v acc => let: (base, rema) := acc in
+    if v \in <<rema>>%VS then (base, behead rema) else (v::base, behead rema))
+  ([::], behead s) s).1.
+
+Definition active1 := 
+  [seq e.1 | e : lrel <- (mask active_ineq_mask (enum_fset base))].
+
+Definition maxLexi_mask :=
+  [seq e.1 \in span_gen active1 | e : lrel <- (enum_fset base)].
+
+Lemma span_genP {K : fieldType} {vT : vectType K} (s : seq vT) (v : vT):
+  v \in s -> v \notin (span_gen s) ->
+  v \in << drop (index v s).+1 s>>%VS.
+Proof.
+Admitted.
+
+End MaxLexBase.
+
+(* Section EBasis.
+
+Variable (K : fieldType) (vT : vectType K).
+
+Fixpoint ebasis (X Y: seq vT):=
+  if X is x :: X' then
+    if (x \in <<X' ++ Y>>%VS) then ebasis X' Y
+    else x :: (ebasis X' Y)
+  else Y.
+
+Lemma ebasis_sub (X Y: seq vT) :
+  {subset (ebasis X Y) <= X ++ Y}.
+Proof.
+elim: X => [| a l Hind x] //=.
+case: ifP => _.
+- by move/Hind; rewrite inE => ->; rewrite orbT.
+- by rewrite !inE => /orP; case => [| /Hind] ->; rewrite ?orbT.
+Qed.
+
+Lemma ebasis_complete (X Y: seq vT) :
+  {subset Y <= (ebasis X Y)}.
+Proof.
+elim: X => [| a l Hind] //=.
+case: ifP => _ // x xinY.
+by move: (Hind x xinY); rewrite inE => ->; rewrite orbT.
+Qed.
+
+
+Lemma ebasis_free (X Y: seq vT):
+  free Y -> free (ebasis X Y).
+Proof.
+move => freeY; elim : X => [| a l Hind]; rewrite ?nil_free //=.
+case: ifPn => [_ //| a_notin_span].
+rewrite free_cons Hind andbT.
+by apply/contra: a_notin_span; apply/subvP/sub_span/ebasis_sub.
+Qed.
+
+Lemma ebasis_span (X Y : seq vT) :
+  (<<ebasis X Y>> = <<X++Y>>).
+Proof.
+elim: X => [| a l Hind] //=.
+case: ifP => [| _]; rewrite !span_cons Hind //.
+rewrite memvE => a_in; symmetry; by apply/addv_idPr.
+Qed.
+
+Lemma ebasis_basis (X Y: seq vT):
+  free Y -> basis_of <<X++Y>>%VS (ebasis X Y).
+Proof.
+move => freeY; apply/andP; split.
+- by apply/eqP/ebasis_span.
+- exact: ebasis_free.
+Qed.
+
+Lemma ebasisP' (X Y: {fset vT}) :
+free Y -> exists Z : {fset vT},
+    [/\ (Z `<=` X `|` Y)%fset, (Y `<=` Z)%fset & basis_of <<(X `|` Y)%fset>> Z].
+(* TODO:
+   perhaps write into an exists2 and with (Y `<=` Z `<=` X `|` Y)%fset *)
+Proof.
+move => freeY.
+pose Z := fset_of_seq (ebasis X Y).
+exists Z; split.
+- apply/fsubsetP => x; rewrite in_fset_of_seq /fsetU in_fset /=.
+  exact: ebasis_sub.
+- apply/fsubsetP => x; rewrite in_fset_of_seq; exact: ebasis_complete.
+- apply/andP; split.
+  + rewrite (eq_span (in_fset_of_seq _)); apply/eqP; rewrite ebasis_span.
+    by apply eq_span; rewrite /eq_mem /fsetU => x; rewrite in_fset /=.
+  + by rewrite (perm_free (perm_eq_fset_of_seq _)) ?free_uniq ?ebasis_free.
+Qed.
+
+
+Lemma ebasisP (X Y: {fset vT}) :
+(Y `<=` X)%fset -> free Y -> exists Z : {fset vT},
+  [/\ (Y `<=` Z)%fset, (Z `<=` X)%fset & basis_of <<X>> Z].
+Proof.
+move=> Ysub Yfree; case: (ebasisP' X Yfree) => Z [].
+by move/fsetUidPl: Ysub => -> ? ? ?; exists Z; split.
+Qed.
+
+Lemma ebasisP0 (X: {fset vT}) :
+exists2 Z : {fset vT}, (Z `<=` X)%fset & basis_of <<X>> Z.
+Proof.
+case: (@ebasisP' X fset0 (nil_free _))=> Z.
+rewrite fsetU0. by case=> ? ?; exists Z.
+Qed.
+
+Lemma card_basis (U : {vspace vT}) (X : {fset vT}) :
+  basis_of U X -> #|` X | = (\dim U)%N.
+Proof.
+move => X_basis.
+apply/anti_leq/andP; split; move: X_basis.
+- by rewrite basisEdim => /andP [].
+- by rewrite basisEfree => /and3P [].
+Qed.
+
+End EBasis.
 
 
 
 
 
-
-
+ *)

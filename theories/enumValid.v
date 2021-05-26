@@ -33,51 +33,176 @@ End Perturbation.
 
 Section LexiBasis.
 
-Context {n m: nat} (base_p : seq ('rV[rat]_n * 'rV[rat]_m.+1)).
-Hypothesis base_size: size base_p = m.
+Context (R : realFieldType) (n m : nat).
 
-Definition all_sat (x : 'M[rat]_(n,m.+1)) :=
+Definition plrel := ('rV[R]_n * 'rV[R]_(m.+1))%type.
+
+Context (base : seq plrel).
+
+Definition A_base := unzip1 base.
+Definition b_base := unzip2 base. 
+
+Record lexi_prebasis := Lexi {
+  s :> m.-tuple bool;
+  _ : (card_bitseq s == n) && basis_of fullv (mask s A_base);
+  (* feasibility *) }.
+
+Canonical lexipre_subType := Eval hnf in [subType for s].
+Definition lexipre_eqMixin := [eqMixin of lexi_prebasis by <:].
+Canonical lexipre_eqType := EqType _ lexipre_eqMixin.
+Definition lexipre_choiceMixin := [choiceMixin of lexi_prebasis by <:].
+Canonical lexipre_choiceType := ChoiceType _ lexipre_choiceMixin.
+Definition lexipre_countMixin := [countMixin of lexi_prebasis by <:].
+Canonical lexipre_countType := CountType _ lexipre_countMixin.
+Canonical lexipre_subCountType := [subCountType of lexi_prebasis].
+Definition lexipre_finMixin := [finMixin of lexi_prebasis by <:].
+Canonical lexipre_finType := FinType _ lexipre_finMixin.
+
+Lemma lexi_card (L : lexi_prebasis) : card_bitseq L = n.
+Proof. Admitted.
+(* Proof. by case: L => ? /= /andP []. Qed. *)
+
+Lemma lexi_size (L : lexi_prebasis) : size L = m.
+Proof. by rewrite size_tuple. Qed.
+
+Lemma lexi_vbasis (L : lexi_prebasis) : basis_of fullv (mask L A_base).
+Proof. by case: L => ? /= /andP []. Qed.
+
+Definition lexi_matrix (L : lexi_prebasis) : 'M_n :=
+  \matrix_(i < n) ((mask L A_base)`_i).
+
+Definition lexi_aff (L : lexi_prebasis) : 'M_(n, m.+1) :=
+  \matrix_(i < n) (mask L b_base)`_i.
+
+Lemma lexi_matrix_inv (L : lexi_prebasis) : (lexi_matrix L) \in unitmx.
+Proof. Admitted.
+
+Definition lexi_point (L : lexi_prebasis) : 'M_(n, m.+1) :=
+  (invmx (lexi_matrix L)) *m (lexi_aff L).
+
+(* ---------------------------------------------------------------------------- *)
+
+Definition all_sat (x : 'M[R]_(n,m.+1)) :=
+  all (fun l => sat_ineq l x) base.
+
+Definition sat_mask (mas : bitseq) (x : 'M[R]_(n, m.+1)) :=
+  all (fun l => sat_ineq l x) (mask mas base).
+
+Definition eq_mask (mas : bitseq) (x : 'M[R]_(n, m.+1)) :=
+  all (fun l => sat_eq l x) (mask mas base).
+
+Record lexi_basis := Lexb
+{
+  sb :> lexi_prebasis;
+  _ : all_sat (lexi_point sb)
+}.
+
+Canonical lexi_subType := Eval hnf in [subType for sb].
+Definition lexi_eqMixin := [eqMixin of lexi_basis by <:].
+Canonical lexi_eqType := EqType _ lexi_eqMixin.
+Definition lexi_choiceMixin := [choiceMixin of lexi_basis by <:].
+Canonical lexi_choiceType := ChoiceType _ lexi_choiceMixin.
+Definition lexi_countMixin := [countMixin of lexi_basis by <:].
+Canonical lexi_countType := CountType _ lexi_countMixin.
+Canonical lexi_subCountType := [subCountType of lexi_basis].
+Definition lexi_finMixin := [finMixin of lexi_basis by <:].
+Canonical lexi_finType := FinType _ lexi_finMixin.
+
+Lemma lexi_sat (L : lexi_basis) : all_sat (lexi_point L).
+Proof. by case: L. Qed.
+
+Lemma lexi_eq (L : lexi_basis) : eq_mask L (lexi_point L).
+Proof. Admitted.
+
+Definition lexi_graph :=
+  create_graph
+  [fset L | L : lexi_basis]
+  (fun L1 L2 => (inter_card L1 L2 == n-1)%nat).
+
+Definition lexi_mask_graph :=
+  create_graph
+  [fset val (val L) | L : lexi_basis]
+  (fun L1 L2 => (inter_card L1 L2 == n-1)%nat).
+(*TODO : map sur des graphes*)
+
+(*TODO : lemme d'isomorphisme entre ces graphes*)
+
+Lemma lexi_regular : regular lexi_graph n.
+Proof. Admitted.
+
+Lemma lexi_connected : connected lexi_graph.
+Proof. Admitted.
+
+End LexiBasis.
+
+Section RelGraph.
+
+Let n := PP.n.
+Let m := PP.m.
+Context (base : seq (plrel [realFieldType of rat] n m)).
+Context (g : PG.t).
+
+(* (G : graph [choiceType of (lexi_basis base)]). *)
+
+Definition rel_foo :=
+  (forall x, x \in vertices (lexi_mask_graph base) = PG.mem_vertex x g)
+  /\ (forall x y, edges (lexi_mask_graph base) x y = PG.mem_edge x y g).
+
+Lemma foo: PA.struct_consistent n g -> PA.vertex_consistent base g -> rel_foo.
+Proof. Admitted.
+
+
+
+
+
+
+
+
+(* matrix X of size n * (1+m) such that
+ * all (fun e => e.1^T * X = e.2) base  *)
+
+
+(* Definition all_sat (x : 'M[rat]_(n,m.+1)) :=
   all (fun l => sat_ineq l x) base_p.
 
 Definition sat_mask (mas : bitseq) (x : 'M[rat]_(n, m.+1)) :=
   all (fun l => sat_ineq l x) (mask mas base_p).
 
 Definition eq_mask (mas : bitseq) (x : 'M[rat]_(n, m.+1)) :=
-  all (fun l => sat_eq l x) (mask mas base_p).
+  all (fun l => sat_eq l x) (mask mas base_p). *)
 
-Definition lexi_preaxiom (b : (bitseq * 'M[rat]_(n,m.+1))%type) :=
+(* Definition lexi_preaxiom (b : (bitseq * 'M[rat]_(n,m.+1))%type) :=
   [&& all_sat b.2, card_bitseq b.1 == n,
-    size b.1 == m & eq_mask b.1 b.2].
+    size b.1 == m & eq_mask b.1 b.2]. *)
 
-Record lexi_prebasis := Lexi {
+(* Record lexi_prebasis := Lexi {
   prebase :> (bitseq * 'M[rat]_(n,m.+1))%type;
   preaxiom : lexi_preaxiom prebase
+}. *)
+
+(* Record extract_mask := Lexi {
+  emask :> m.-tuple bool;
+  eaxiom : (card_bitseq emask == n)
 }.
-
-Definition lexi_mask (L : lexi_prebasis) : bitseq := L.1.
-Definition lexi_point (L : lexi_prebasis) : 'M[rat]_(n, m.+1) := L.2.
   
-Canonical prelexi_subType := [subType for prebase].
-Definition prelexi_eqMixin := [eqMixin of lexi_prebasis by <:].
-Canonical prelexi_eqType := EqType _ prelexi_eqMixin.
-Definition prelexi_choiceMixin := [choiceMixin of lexi_prebasis by <:].
-Canonical prelexi_choiceType := ChoiceType _ prelexi_choiceMixin.
+Canonical emask_subType := [subType for emask].
+Definition emask_eqMixin := [eqMixin of extract_mask by <:].
+Canonical emask_eqType := EqType _ emask_eqMixin.
+Definition emask_choiceMixin := [choiceMixin of extract_mask by <:].
+Canonical emask_choiceType := ChoiceType _ emask_choiceMixin.
+Check [finType of m.-tuple bool].
+Definition emask_finMixin := [finm] *)
 
-Lemma lexi_preaxiomP (L : lexi_prebasis) :
+
+(* Lemma lexi_preaxiomP (L : extract_masks) :
   lexi_preaxiom L.
 Proof. exact: preaxiom. Qed.
 
-Lemma lexi_all_sat (L : lexi_prebasis) :
+Lemma lexi_all_sat (L : extract_masks) :
   all_sat (lexi_point L).
-Proof. by case/and4P: (lexi_preaxiomP L). Qed.
+Proof. by case/and4P: (lexi_preaxiomP L). Qed. *)
 
-Lemma lexi_card (L : lexi_prebasis) :
-  card_bitseq (lexi_mask L) = n.
-Proof. by apply/eqP; case/and4P: (lexi_preaxiomP L). Qed.
 
-Lemma lexi_size (L : lexi_prebasis) :
-  size (lexi_mask L) = m.
-Proof. by apply/eqP; case/and4P : (lexi_preaxiomP L). Qed.
 
 Lemma lexi_eq_mask (L: lexi_prebasis) :
   eq_mask (lexi_mask L) (lexi_point L).
@@ -87,11 +212,8 @@ Lemma lexi_sat_maskP (L: lexi_prebasis) x:
   all_sat x -> sat_mask (lexi_mask L) x.
 Proof. move=> ?; exact: all_mask. Qed.
 
-Definition lexi_matrix (L : lexi_prebasis) : 'M_n :=
-  \matrix_(i < n) (mask (lexi_mask L) (unzip1 base_p))`_i.
 
-Definition lexi_aff (L : lexi_prebasis) : 'M_(n, m.+1) :=
-  \matrix_(i < n) (mask (lexi_mask L) (unzip2 base_p))`_i.
+
 
 Lemma lexi_mtx_affP (L : lexi_prebasis) x:
   reflect
@@ -102,7 +224,7 @@ apply/(iffP idP).
 - move/allP=> /= h; apply/row_matrixP => i.
   rewrite row_mul !rowK -!map_mask.
   set s:= mask _ _ in h *.
-  have sz_s : size s = n.
+  have sz_s : size s = n by
   rewrite size_mask ?lexi_size ?base_size -?(lexi_card L).
   move: (ltn_ord i); rewrite -{2}sz_s=> i_lt.
   move/eqP: (h s`_i (mem_nth _ i_lt)).
@@ -241,16 +363,6 @@ Qed.
 
 End LexPivot.
 
-Section Foo.
-
-Context {n m: nat} (base_p : seq ('rV[rat]_n * 'rV[rat]_m.+1)).
-Hypothesis base_size: size base_p = m.
-Context (L : )
-
-
-
-End Foo.
-
 Section MaxLexBase.
 
 Context {n' : nat} (n := n'.+1) (base : base_t[rat,n]).
@@ -279,107 +391,3 @@ Proof.
 Admitted.
 
 End MaxLexBase.
-
-(* Section EBasis.
-
-Variable (K : fieldType) (vT : vectType K).
-
-Fixpoint ebasis (X Y: seq vT):=
-  if X is x :: X' then
-    if (x \in <<X' ++ Y>>%VS) then ebasis X' Y
-    else x :: (ebasis X' Y)
-  else Y.
-
-Lemma ebasis_sub (X Y: seq vT) :
-  {subset (ebasis X Y) <= X ++ Y}.
-Proof.
-elim: X => [| a l Hind x] //=.
-case: ifP => _.
-- by move/Hind; rewrite inE => ->; rewrite orbT.
-- by rewrite !inE => /orP; case => [| /Hind] ->; rewrite ?orbT.
-Qed.
-
-Lemma ebasis_complete (X Y: seq vT) :
-  {subset Y <= (ebasis X Y)}.
-Proof.
-elim: X => [| a l Hind] //=.
-case: ifP => _ // x xinY.
-by move: (Hind x xinY); rewrite inE => ->; rewrite orbT.
-Qed.
-
-
-Lemma ebasis_free (X Y: seq vT):
-  free Y -> free (ebasis X Y).
-Proof.
-move => freeY; elim : X => [| a l Hind]; rewrite ?nil_free //=.
-case: ifPn => [_ //| a_notin_span].
-rewrite free_cons Hind andbT.
-by apply/contra: a_notin_span; apply/subvP/sub_span/ebasis_sub.
-Qed.
-
-Lemma ebasis_span (X Y : seq vT) :
-  (<<ebasis X Y>> = <<X++Y>>).
-Proof.
-elim: X => [| a l Hind] //=.
-case: ifP => [| _]; rewrite !span_cons Hind //.
-rewrite memvE => a_in; symmetry; by apply/addv_idPr.
-Qed.
-
-Lemma ebasis_basis (X Y: seq vT):
-  free Y -> basis_of <<X++Y>>%VS (ebasis X Y).
-Proof.
-move => freeY; apply/andP; split.
-- by apply/eqP/ebasis_span.
-- exact: ebasis_free.
-Qed.
-
-Lemma ebasisP' (X Y: {fset vT}) :
-free Y -> exists Z : {fset vT},
-    [/\ (Z `<=` X `|` Y)%fset, (Y `<=` Z)%fset & basis_of <<(X `|` Y)%fset>> Z].
-(* TODO:
-   perhaps write into an exists2 and with (Y `<=` Z `<=` X `|` Y)%fset *)
-Proof.
-move => freeY.
-pose Z := fset_of_seq (ebasis X Y).
-exists Z; split.
-- apply/fsubsetP => x; rewrite in_fset_of_seq /fsetU in_fset /=.
-  exact: ebasis_sub.
-- apply/fsubsetP => x; rewrite in_fset_of_seq; exact: ebasis_complete.
-- apply/andP; split.
-  + rewrite (eq_span (in_fset_of_seq _)); apply/eqP; rewrite ebasis_span.
-    by apply eq_span; rewrite /eq_mem /fsetU => x; rewrite in_fset /=.
-  + by rewrite (perm_free (perm_eq_fset_of_seq _)) ?free_uniq ?ebasis_free.
-Qed.
-
-
-Lemma ebasisP (X Y: {fset vT}) :
-(Y `<=` X)%fset -> free Y -> exists Z : {fset vT},
-  [/\ (Y `<=` Z)%fset, (Z `<=` X)%fset & basis_of <<X>> Z].
-Proof.
-move=> Ysub Yfree; case: (ebasisP' X Yfree) => Z [].
-by move/fsetUidPl: Ysub => -> ? ? ?; exists Z; split.
-Qed.
-
-Lemma ebasisP0 (X: {fset vT}) :
-exists2 Z : {fset vT}, (Z `<=` X)%fset & basis_of <<X>> Z.
-Proof.
-case: (@ebasisP' X fset0 (nil_free _))=> Z.
-rewrite fsetU0. by case=> ? ?; exists Z.
-Qed.
-
-Lemma card_basis (U : {vspace vT}) (X : {fset vT}) :
-  basis_of U X -> #|` X | = (\dim U)%N.
-Proof.
-move => X_basis.
-apply/anti_leq/andP; split; move: X_basis.
-- by rewrite basisEdim => /andP [].
-- by rewrite basisEfree => /and3P [].
-Qed.
-
-End EBasis.
-
-
-
-
-
- *)

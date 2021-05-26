@@ -98,3 +98,31 @@ Definition create_graph (V: {fset T}) (E : rel T) : graph T :=
 
 
 End GraphBasics.
+
+Section Connected.
+Context (T : choiceType) (G : graph T).
+
+Record gpath := GPath {
+  src : T;
+  dst : T;
+  s : seq T;
+  _ : path (edges G) src s;
+  _ : last src s = dst
+}.
+
+Record epath := EPath {
+  p :> gpath;
+  _ : uniq (src p :: s p)
+}.
+
+Definition connected := forall x y : T, x \in vertices G -> y \in vertices G ->
+  exists2 p : epath, src p = x & dst p = y.
+
+End Connected.
+
+Section Regular.
+Context (T : choiceType) (G : graph T) (n : nat).
+
+Definition regular := forall v : T, v \in vertices G -> #|` successors G v| = n.
+
+End Regular.

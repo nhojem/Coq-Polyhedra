@@ -1,7 +1,7 @@
 Require Import Recdef.
 Require Import FMaps FMapAVL FSetAVL.
 From mathcomp Require Import all_ssreflect all_algebra finmap.
-Require Import MapFold.
+Require Import MapFold high_graph.
 
 (* Require Import extra_misc inner_product extra_matrix xorder vector_order row_submx vector_order.
 Require Import hpolyhedron polyhedron barycenter poly_base.
@@ -271,6 +271,18 @@ Proof. by move=> ??; apply: neighbour_allE => // ??? ->. Qed.
 End VertexFold.
 
 End Lemmas.
+
+Section Refinement.
+
+Context (T : choiceType) (u : T -> Map.key) (v : Map.key -> T).
+Hypothesis uvK : 
+
+Definition relg (G : graph T) (g : t) :=
+  (forall x : T, x \in vertices G = mem_vertex (u x) g)
+  /\ (forall x y : T, edges G x y = mem_edge (u x) (u y) g).
+
+
+End Refinement.
 End Graph.
 
 

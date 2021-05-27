@@ -74,7 +74,7 @@ Definition mem_edge v1 v2 (G : t) :=
 
 Definition vertex_fold (A : Type) f (G : t) (a : A) :=
   Map.fold f G a.
-  
+
 Definition neighbour_fold (A: Type) f v (G : t) (a : A) :=
   if neighbours v G is Some s then FSet.fold f s a else a.
 
@@ -170,10 +170,10 @@ Proof. exact: MF.L. Qed.
 
 Lemma vertex_allE f rA (G:t) vtxs:
   `{Equivalence rA} ->
-  (forall a b c d, rA a b -> rA (a && (f c d)) (b && (f c d))) -> 
+  (forall a b c d, rA a b -> rA (a && (f c d)) (b && (f c d))) ->
   Map.IsBindings G vtxs ->
   rA (vertex_all f G) (all (fun x => f x.1 x.2) vtxs).
-Proof. exact: MF.L_all. Qed. 
+Proof. exact: MF.L_all. Qed.
 
 Lemma vertex_fold_eq A f (G : t) (a : A) vtxs:
   Map.IsBindings G vtxs ->
@@ -265,9 +265,9 @@ Lemma neighbour_all_eq (f: Map.key -> bool) (G : t) neis v:
   mem_vertex v G ->
   perm_eq neis (neighbour_list G v) ->
   neighbour_all f G v = all f neis.
-Proof. by move=> ??; apply: neighbour_allE => // ??? ->. Qed. 
+Proof. by move=> ??; apply: neighbour_allE => // ??? ->. Qed.
 
-  
+
 End VertexFold.
 
 End Lemmas.
@@ -275,7 +275,6 @@ End Lemmas.
 Section Refinement.
 
 Context (T : choiceType) (u : T -> Map.key) (v : Map.key -> T).
-Hypothesis uvK : 
 
 Definition relg (G : graph T) (g : t) :=
   (forall x : T, x \in vertices G = mem_vertex (u x) g)
@@ -284,5 +283,3 @@ Definition relg (G : graph T) (g : t) :=
 
 End Refinement.
 End Graph.
-
-

@@ -40,7 +40,7 @@ Definition plrel := ('rV[R]_n * 'rV[R]_(m.+1))%type.
 Context (base : seq plrel).
 
 Definition A_base := unzip1 base.
-Definition b_base := unzip2 base. 
+Definition b_base := unzip2 base.
 
 Record lexi_prebasis := Lexi {
   s :> m.-tuple bool;
@@ -151,9 +151,7 @@ Definition rel_foo :=
 Lemma foo: PA.struct_consistent n g -> PA.vertex_consistent base g -> rel_foo.
 Proof. Admitted.
 
-
-
-
+End RelGraph.
 
 
 
@@ -184,7 +182,7 @@ Definition eq_mask (mas : bitseq) (x : 'M[rat]_(n, m.+1)) :=
   emask :> m.-tuple bool;
   eaxiom : (card_bitseq emask == n)
 }.
-  
+
 Canonical emask_subType := [subType for emask].
 Definition emask_eqMixin := [eqMixin of extract_mask by <:].
 Canonical emask_eqType := EqType _ emask_eqMixin.
@@ -203,7 +201,7 @@ Lemma lexi_all_sat (L : extract_masks) :
 Proof. by case/and4P: (lexi_preaxiomP L). Qed. *)
 
 
-
+(*
 Lemma lexi_eq_mask (L: lexi_prebasis) :
   eq_mask (lexi_mask L) (lexi_point L).
 Proof. by case/and4P: (lexi_preaxiomP L). Qed.
@@ -254,7 +252,7 @@ rewrite !(nth_map 0) ?size_mask ?lexi_size ?base_size //.
 by apply/sat_x/mem_nth; rewrite size_mask ?lexi_size ?base_size.
 Qed.
 
- 
+
 (* ------------------------------------------------------------------- *)
 
 Definition is_basis (L : lexi_prebasis) : bool :=
@@ -378,7 +376,7 @@ Definition span_gen  {K : fieldType} {vT : vectType K} (s : seq vT) :=
     if v \in <<rema>>%VS then (base, behead rema) else (v::base, behead rema))
   ([::], behead s) s).1.
 
-Definition active1 := 
+Definition active1 :=
   [seq e.1 | e : lrel <- (mask active_ineq_mask (enum_fset base))].
 
 Definition maxLexi_mask :=
@@ -391,3 +389,4 @@ Proof.
 Admitted.
 
 End MaxLexBase.
+*)

@@ -56,7 +56,7 @@ Definition neighbours v (G : t) :=
   if Map.find v G is Some (l,s) then Some s else None.
 
 Definition label v (G : t) :=
-  if Map.find v G is Some (l,s) then Some l else None.
+  if find_vertex v G is Some (l,s) then Some l else None.
 
 Definition empty := Map.empty (L.t * FSet.t).
 
@@ -125,6 +125,17 @@ split.
   by move: (Map.find_1 (Map.elements_2 ina)) => ?; exists e.
 - rewrite /find_vertex; case=> e find_vtx; apply/Map.mem_1/MF.in_find_iff.
   by rewrite find_vtx.
+Qed.
+
+Lemma vtx_lblE (G : t) v:
+  mem_vertex v G <-> (exists e, label v G = Some e).
+Proof.
+split.
+- case/vtx_memE; case=> a ?.
+  by rewrite /label /find_vertex => ->; exists a.
+- case=> a; rewrite /label => h.
+  apply/vtx_memE; move: h.
+  by case: (find_vertex v G)=> // b _; exists b.
 Qed.
 
 Lemma find_mem (G : t) v e:
@@ -272,7 +283,7 @@ End VertexFold.
 
 End Lemmas.
 
-Section Refinement.
+(* Section Refinement.
 
 Context (T : choiceType) (u : T -> Map.key) (v : Map.key -> T).
 
@@ -281,5 +292,5 @@ Definition relg (G : graph T) (g : t) :=
   /\ (forall x y : T, edges G x y = mem_edge (u x) (u y) g).
 
 
-End Refinement.
+End Refinement. *)
 End Graph.

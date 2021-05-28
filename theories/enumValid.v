@@ -18,26 +18,33 @@ Open Scope ring_scope.
 
 Section Perturbation.
 
-Context {n' : nat} (n := n'.+1) (base : base_t[rat,n]).
+Context (n m: nat) (R: realFieldType) (base : m.-tuple lrel[R]_n).
+Definition plrel := ('rV[R]_n * 'rV[R]_(m.+1))%type.
 
-Definition create_perturbation {m : nat} (b : rat) (k : 'I_m) : 'rV_m.+1 :=
-  @row_mx _ _ 1 m (const_mx b) (row k (- pid_mx m)).
+Definition create_perturbation (b : R) (k : 'I_m) : 'rV_(m.+1) :=
+  @row_mx _ _ 1 m (const_mx b) (delta_mx 0 k).
 
 
-Definition perturbation :=
+Definition perturbation : seq plrel :=
   map
-  (fun x: lrel * 'I_(#|`base|) => (x.1.1^T , create_perturbation x.1.2 x.2))
-  (zip (enum_fset base) (ord_enum #|`base|)).
+  (fun x: lrel * 'I_m => (x.1.1^T , create_perturbation x.1.2 x.2))
+  (zip base (ord_enum m)).
+
+Lemma size_pert: size perturbation = m.
+Proof.
+rewrite size_map size_zip size_tuple.
+suff ->: (size (ord_enum m)) = m by rewrite minnn.
+rewrite size_pmap_sub -[RHS](size_iota 0).
+apply/eqP; rewrite -all_count; apply/allP=> i.
+by rewrite mem_iota; case/andP=> _; rewrite add0n.
+Qed.
 
 End Perturbation.
 
 Section LexiBasis.
 
 Context (R : realFieldType) (n m : nat).
-
-Definition plrel := ('rV[R]_n * 'rV[R]_(m.+1))%type.
-
-Context (base : seq plrel).
+Context (base : seq (plrel n m R)).
 
 Definition A_base := unzip1 base.
 Definition b_base := unzip2 base.
@@ -45,7 +52,7 @@ Definition b_base := unzip2 base.
 Record lexi_prebasis := Lexi {
   s :> m.-tuple bool;
   _ : (card_bitseq s == n) && basis_of fullv (mask s A_base);
-  (* feasibility *) }.
+  }.
 
 Canonical lexipre_subType := Eval hnf in [subType for s].
 Definition lexipre_eqMixin := [eqMixin of lexi_prebasis by <:].
@@ -68,17 +75,17 @@ Proof. by rewrite size_tuple. Qed.
 Lemma lexi_vbasis (L : lexi_prebasis) : basis_of fullv (mask L A_base).
 Proof. by case: L => ? /= /andP []. Qed.
 
-Definition lexi_matrix (L : lexi_prebasis) : 'M_n :=
+Definition mask_matrix (L : m.-tuple bool) : 'M_n :=
   \matrix_(i < n) ((mask L A_base)`_i).
 
-Definition lexi_aff (L : lexi_prebasis) : 'M_(n, m.+1) :=
+Definition mask_aff (L : m.-tuple bool) : 'M_(n, m.+1) :=
   \matrix_(i < n) (mask L b_base)`_i.
 
-Lemma lexi_matrix_inv (L : lexi_prebasis) : (lexi_matrix L) \in unitmx.
+Lemma lexi_matrix_inv (L : lexi_prebasis) : (mask_matrix L) \in unitmx.
 Proof. Admitted.
 
 Definition lexi_point (L : lexi_prebasis) : 'M_(n, m.+1) :=
-  (invmx (lexi_matrix L)) *m (lexi_aff L).
+  (invmx (mask_matrix L)) *m (mask_aff L).
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -139,17 +146,100 @@ Section RelGraph.
 
 Let n := PP.n.
 Let m := PP.m.
-Context (base : seq (plrel [realFieldType of rat] n m)).
+Context (base : m.-tuple lrel[rat]_n).
 Context (g : PG.t).
 
-(* (G : graph [choiceType of (lexi_basis base)]). *)
+
+Definition target_Po := perturbation base.
+Definition target_graph := lexi_mask_graph target_Po.
+
+Hypothesis g_struct : PA.struct_consistent n target_Po g.
+Hypothesis g_vtx : PA.vertex_consistent target_Po g.
 
 Definition rel_foo :=
-  (forall x, x \in vertices (lexi_mask_graph base) = PG.mem_vertex x g)
-  /\ (forall x y, edges (lexi_mask_graph base) x y = PG.mem_edge x y g).
+  (forall x, x \in vertices (lexi_mask_graph target_Po) = PG.mem_vertex x g)
+  /\ (forall x y, edges (lexi_mask_graph target_Po) x y = PG.mem_edge x y g).
 
-Lemma foo: PA.struct_consistent n g -> PA.vertex_consistent base g -> rel_foo.
-Proof. Admitted.
+Definition low_point k := if PG.label k g is Some l then l else 0.
+
+Lemma low_pointP k: PG.mem_vertex k g ->
+  exists2 e, PG.find_vertex k g = Some e & e.1 = low_point k.
+Proof.
+move=> /PG.vtx_memE [].
+by rewrite /low_point /PG.label; case=> a b ->; exists (a,b).
+Qed.
+
+Lemma mem_low_sat x: PG.mem_vertex x g ->
+  all_sat target_Po (low_point x).
+Proof.
+move: g_vtx.
+move/PG.vertex_allP=> H /low_pointP [e].
+by case/H/andP => _ ? <-.
+Qed.
+
+Lemma mem_low_mask x: PG.mem_vertex x g ->
+  eq_mask target_Po x (low_point x).
+Proof.
+move: g_vtx.
+move/PG.vertex_allP=> H /low_pointP [e].
+by case/H/andP => ? _ <-.
+Qed.
+
+Lemma mem_low_card x: PG.mem_vertex x g ->
+  card_bitseq x = n.
+Proof.
+move/PG.vertex_allP: g_struct=> H.
+by case/PG.vtx_memE=> e /H/and4P [_ /eqP].
+Qed.
+
+Lemma low_mtx_affP (mas : m.-tuple bool):
+  PG.mem_vertex mas g ->
+  (mask_matrix target_Po mas) *m (low_point mas) = (mask_aff target_Po mas).
+Proof.
+move=> mas_g.
+move/mem_low_mask/allP: (mas_g) => /= eq_mas.
+apply/row_matrixP => i.
+rewrite row_mul !rowK -[in LHS]map_mask -[in RHS]map_mask.
+have size_mas: size (mask mas target_Po) = n by
+  rewrite size_mask ?size_pert ?size_tuple -?(mem_low_card mas_g).
+rewrite !(nth_map 0) ?size_mas //.
+by apply/eqP/eq_mas/mem_nth; rewrite size_mas.
+Qed.
+
+Lemma low_basis_of (mas : m.-tuple bool):
+  PG.mem_vertex mas g ->
+  basis_of fullv (mask mas (A_base target_Po)).
+Proof.
+move=> mas_g; rewrite basisEdim; apply/andP; split.
+- admit.
+- rewrite size_mask 1?size_map ?size_pert ?size_tuple //.
+  admit.
+Admitted.
+
+
+
+(* apply/(iffP idP).
+- move/allP=> /= h; apply/row_matrixP => i.
+  rewrite row_mul !rowK /A_base /b_base /unzip1 /unzip2.
+  do 2 rewrite -map_mask.
+  set s:= mask _ _ in h *.
+  have sz_s : size s = n.
+  rewrite size_mask ?lexi_size ?base_size -?(lexi_card L).
+  move: (ltn_ord i); rewrite -{2}sz_s=> i_lt.
+  move/eqP: (h s`_i (mem_nth _ i_lt)).
+  congr (_ = _); first congr (_ *m _); exact/esym/nth_map.
+- move/row_matrixP=> h; apply/allP => l /nthP /= /(_ 0) [i i_lt <-].
+  set s := mask _ _ in i_lt *.
+  have sz_s : size s = n by
+  rewrite size_mask ?lexi_size ?base_size -?(lexi_card L).
+  rewrite sz_s in i_lt; move: (h (Ordinal i_lt)).
+  rewrite row_mul !rowK -!map_mask !(nth_map 0) ?sz_s //=.
+  by move/eqP.
+Qed. *)
+
+Lemma foo: rel_foo.
+Proof.
+Admitted.
 
 End RelGraph.
 
@@ -208,37 +298,16 @@ Proof. by case/and4P: (lexi_preaxiomP L). Qed.
 
 Lemma lexi_sat_maskP (L: lexi_prebasis) x:
   all_sat x -> sat_mask (lexi_mask L) x.
-Proof. move=> ?; exact: all_mask. Qed.
+Proof. move=> ?; exact: all_mask. Qed. *)
 
 
 
 
-Lemma lexi_mtx_affP (L : lexi_prebasis) x:
-  reflect
-  ((lexi_matrix L) *m x = (lexi_aff L))
-  (eq_mask (lexi_mask L) x).
-Proof.
-apply/(iffP idP).
-- move/allP=> /= h; apply/row_matrixP => i.
-  rewrite row_mul !rowK -!map_mask.
-  set s:= mask _ _ in h *.
-  have sz_s : size s = n by
-  rewrite size_mask ?lexi_size ?base_size -?(lexi_card L).
-  move: (ltn_ord i); rewrite -{2}sz_s=> i_lt.
-  move/eqP: (h s`_i (mem_nth _ i_lt)).
-  congr (_ = _); first congr (_ *m _); exact/esym/nth_map.
-- move/row_matrixP=> h; apply/allP => l /nthP /= /(_ 0) [i i_lt <-].
-  set s := mask _ _ in i_lt *.
-  have sz_s : size s = n by
-  rewrite size_mask ?lexi_size ?base_size -?(lexi_card L).
-  rewrite sz_s in i_lt; move: (h (Ordinal i_lt)).
-  rewrite row_mul !rowK -!map_mask !(nth_map 0) ?sz_s //=.
-  by move/eqP.
-Qed.
 
 
 
-Lemma lexi_solP (L: lexi_prebasis):
+
+(* Lemma lexi_solP (L: lexi_prebasis):
   (lexi_matrix L) *m (lexi_point L) = (lexi_aff L).
 Proof. exact/lexi_mtx_affP/lexi_eq_mask. Qed.
 

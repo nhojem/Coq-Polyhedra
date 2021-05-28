@@ -74,9 +74,11 @@ Definition vertex_consistent :=
   in AlgoGraph.vertex_all f G.
 
 Definition neighbour_condition I :=
+  [&& (size I == size Po),
+  card_bitseq I == n,
   (AlgoGraph.neighbour_all
-    (fun J => inter_card I J == (n-1)%nat) G I) &&
-  (AlgoGraph.nb_neighbours I G == Some n).
+    (fun J => inter_card I J == (n-1)%nat) G I) &
+  (AlgoGraph.nb_neighbours I G == Some n)].
 
 Definition struct_consistent :=
   AlgoGraph.vertex_all (fun I _ => neighbour_condition I) G.

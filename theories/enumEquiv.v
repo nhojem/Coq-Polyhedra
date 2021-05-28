@@ -43,49 +43,7 @@ Module BQG := BigQAlgorithm.AlgoGraph.
 Module PP := PolyPrerequisite.
 Module BQP := BigQPrerequisite.
 
-Section GraphStructure.
 
-Variable n : nat.
-Variable G1 : PG.t.
-Variable G2 : BQG.t.
-
-Definition eqv_graph :=
-  (PG.mem_vertex^~ G1 =1 BQG.mem_vertex^~ G2) /\
-  (forall v1 v2, PG.mem_edge v1 v2 G1 = BQG.mem_edge v1 v2 G2).
-
-Lemma perm_eqv_graph: eqv_graph ->
-  perm_eq (PG.vertex_list G1) (BQG.vertex_list G2).
-Proof.
-rewrite /PG.adj_list /BQG.adj_list.
-case=> ? _; apply: uniq_perm; rewrite ?PG.MF.uniq_keys ?BQG.MF.uniq_keys //.
-by move=> v; rewrite PG.vtx_mem_list BQG.vtx_mem_list.
-Qed.
-
-
-Lemma eqv_struct_consistent : eqv_graph ->
-  PA.struct_consistent n G1 = BQA.struct_consistent n G2.
-Proof.
-move=> [eqvtx eqedg]; rewrite /PA.struct_consistent /BQA.struct_consistent.
-rewrite (PG.vertex_all_eq _ (PG.adj_listP G1)).
-rewrite (BQG.vertex_all_eq _ (BQG.adj_listP G2)) -!all_map.
-rewrite (@eq_all _ (PA.neighbour_condition n G1) (BQA.neighbour_condition n G2)).
-  exact/perm_all/perm_eqv_graph.
-move=> I; rewrite /PA.neighbour_condition /BQA.neighbour_condition.
-case E: (PG.mem_vertex I G1).
-- rewrite (@PG.neighbour_all_eq _ _ (PG.neighbour_list G1 I)) //.
-  rewrite eqvtx in E.
-  rewrite (@BQG.neighbour_all_eq _ _ (BQG.neighbour_list G2 I)) //.
-  have perm_nei: perm_eq (PG.neighbour_list G1 I) (BQG.neighbour_list G2 I).
-  + apply/uniq_perm; rewrite ?PG.uniq_neighbour_list ?BQG.uniq_neighbour_list //.
-    by move=> x; rewrite -PG.edge_mem_list -BQG.edge_mem_list eqedg.
-  congr (_ && _); first exact/perm_all.
-  + rewrite (PG.nb_neighbours_list) ?(BQG.nb_neighbours_list) ?eqvtx //.
-    by rewrite (perm_size perm_nei).
-  + rewrite PG.neighbour_allF ?BQG.neighbour_allF -?eqvtx ?E //=.
-    by rewrite PG.nb_neighboursF ?BQG.nb_neighboursF -?eqvtx ?E.
-Qed.
-
-End GraphStructure.
 
 Section Refinement.
 
@@ -427,6 +385,53 @@ rewrite (sat_ineqE r_ab rU); congr andb.
 exact/ih.
 Qed.
 
+Section GraphStructure.
+
+Variable n : nat.
+Variable G1 : PG.t.
+Variable G2 : BQG.t.
+Context (PPo : seq PP.L) (BQPo : seq BQP.L).
+
+Definition eqv_graph :=
+  (PG.mem_vertex^~ G1 =1 BQG.mem_vertex^~ G2) /\
+  (forall v1 v2, PG.mem_edge v1 v2 G1 = BQG.mem_edge v1 v2 G2).
+
+Lemma perm_eqv_graph: eqv_graph ->
+  perm_eq (PG.vertex_list G1) (BQG.vertex_list G2).
+Proof.
+rewrite /PG.adj_list /BQG.adj_list.
+case=> ? _; apply: uniq_perm; rewrite ?PG.MF.uniq_keys ?BQG.MF.uniq_keys //.
+by move=> v; rewrite PG.vtx_mem_list BQG.vtx_mem_list.
+Qed.
+
+
+Lemma eqv_struct_consistent : eqv_graph -> r_Po PPo BQPo ->
+  PA.struct_consistent n PPo G1 = BQA.struct_consistent n BQPo G2.
+Proof.
+move=> [eqvtx eqedg] rPo; rewrite /PA.struct_consistent /BQA.struct_consistent.
+rewrite (PG.vertex_all_eq _ (PG.adj_listP G1)).
+rewrite (BQG.vertex_all_eq _ (BQG.adj_listP G2)) -!all_map.
+rewrite (@eq_all _ (PA.neighbour_condition n PPo G1) (BQA.neighbour_condition n BQPo G2)).
+  exact/perm_all/perm_eqv_graph.
+move=> I; rewrite /PA.neighbour_condition /BQA.neighbour_condition.
+congr andb; first by case/andP: rPo=> /eqP ->.
+congr andb.
+case E: (PG.mem_vertex I G1).
+- rewrite (@PG.neighbour_all_eq _ _ (PG.neighbour_list G1 I)) //.
+  rewrite eqvtx in E.
+  rewrite (@BQG.neighbour_all_eq _ _ (BQG.neighbour_list G2 I)) //.
+  have perm_nei: perm_eq (PG.neighbour_list G1 I) (BQG.neighbour_list G2 I).
+  + apply/uniq_perm; rewrite ?PG.uniq_neighbour_list ?BQG.uniq_neighbour_list //.
+    by move=> x; rewrite -PG.edge_mem_list -BQG.edge_mem_list eqedg.
+  congr (_ && _); first exact/perm_all.
+  + rewrite (PG.nb_neighbours_list) ?(BQG.nb_neighbours_list) ?eqvtx //.
+    by rewrite (perm_size perm_nei).
+  + rewrite PG.neighbour_allF ?BQG.neighbour_allF -?eqvtx ?E //=.
+    by rewrite PG.nb_neighboursF ?BQG.nb_neighboursF -?eqvtx ?E.
+Qed.
+
+End GraphStructure.
+
 
 Section GraphData.
 
@@ -451,7 +456,7 @@ case: xP xBQ => lP nP [lBQ nBQ] /= eqd PGfind BQGfind.
 move: (eqd v (PG.find_mem PGfind) (BQG.find_mem BQGfind)).
 rewrite /eqd_vtx /PG.label /BQG.label.
 rewrite /PG.find_vertex /BQG.find_vertex in PGfind BQGfind.
-by rewrite PGfind BQGfind /=.
+by rewrite /PG.find_vertex /BQG.find_vertex PGfind BQGfind /=.
 Qed.
 
 Lemma eqv_vertex_consistent: (eqv_graph G1 G2) -> eqv_data ->

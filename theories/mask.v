@@ -16,8 +16,8 @@ Section ChooseMask.
 
 Context (m n : nat).
 Record cmask :=
-  ChooseMask { smask :> m.-tuple bool;
-               _ : ##|smask| == n }.
+  CMask { smask :> m.-tuple bool;
+          _ : ##|smask| == n }.
 
 Canonical cmask_subType := Eval hnf in [subType for smask].
 Definition cmask_eqMixin := [eqMixin of cmask by <:].

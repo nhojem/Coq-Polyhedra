@@ -1,11 +1,7 @@
-Require Import Recdef.
 From mathcomp Require Import all_ssreflect all_algebra finmap.
-Require Import extra_misc inner_product extra_matrix xorder vector_order row_submx vector_order.
-Require Import hpolyhedron polyhedron barycenter poly_base.
-Require Import enumeration graph MapFold enumEquiv.
-Require Import high_graph.
-From Bignums Require Import BigQ.
-Require Import Setoid.
+Require Import extra_misc inner_product extra_matrix vector_order.
+Require Import hpolyhedron.
+Require Import mask enum_algo graph high_graph.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -46,52 +42,7 @@ Proof. apply/eqP/size_pert_. Qed.
 
 End Perturbation.
 
-Section FixedMask.
 
-Context (m n : nat).
-Record fixed_mask := FixedMask {
-  fmask :> m.-tuple bool;
-  _ : #|fmask |^T == n
-}.
-
-Canonical fmask_subType := Eval hnf in [subType for fmask].
-Definition fmask_eqMixin := [eqMixin of fixed_mask by <:].
-Canonical fmask_eqType := EqType _ fmask_eqMixin.
-Definition fmask_choiceMixin := [choiceMixin of fixed_mask by <:].
-Canonical fmask_choiceType := ChoiceType _ fmask_choiceMixin.
-Definition fmask_countMixin := [countMixin of fixed_mask by <:].
-Canonical fmask_countType := CountType _ fmask_countMixin.
-Canonical fmask_subCountType := [subCountType of fixed_mask].
-Definition fmask_finMixin := [finMixin of fixed_mask by <:].
-Canonical fmask_finType := FinType _ fmask_finMixin.
-
-Lemma card_fmask (mas : fixed_mask) : #|mas |^T = n.
-Proof. by case: mas => ? /= /eqP. Qed.
-
-Lemma size_fmask (mas : fixed_mask) : size mas = m.
-Proof. by rewrite size_tuple. Qed.
-
-Definition fmask_nth_ (mas : fixed_mask) (k : 'I_n) :=
-  nth m (mask mas (iota 0 m)) k.
-  
-Lemma fmask_nth_lt (mas: fixed_mask) (k : 'I_n) :
-  (fmask_nth_ mas k < m)%nat.
-Proof.
-Admitted.
-
-Definition fmask_nth (mas : fixed_mask) (k : 'I_n) :=
-  Ordinal (fmask_nth_lt mas k).
-
-Lemma fmask_nth_mono (mas : fixed_mask) :
-  {mono (fmask_nth mas) : x y/ (x < y)%nat}.
-Proof.
-Admitted.
-
-
-End FixedMask.
-
-Notation "{ m ~ n }.-mask" := (fixed_mask m n)
-  (at level 0, format "{ m  ~  n }.-mask").
 
 Section LexiBasis.
 
@@ -102,7 +53,7 @@ Definition A_base := unzip1 base.
 Definition b_base := unzip2 base.
 
 Record lexi_prebasis := Lexi {
-  s :> {m ~ n}.-mask;
+  s :> m.-choose n;
   _ : basis_of fullv (mask s A_base);
   }.
 
@@ -118,23 +69,23 @@ Definition lexipre_finMixin := [finMixin of lexi_prebasis by <:].
 Canonical lexipre_finType := FinType _ lexipre_finMixin.
 
 Lemma lexi_vbasis (L : lexi_prebasis) : basis_of fullv (mask L A_base).
-Proof. by case: L => ? /= []. Qed.
+Proof. by case: L => ? /=. Qed.
 
-Definition mask_matrix (L : {m ~ n}.-mask) : 'M_n :=
+Definition mask_matrix (L : m.-choose n) : 'M_n :=
   \matrix_(i < n) ((mask L A_base)`_i).
 
-Definition mask_aff (L :  {m ~ n}.-mask) : 'M_(n, m.+1) :=
+Definition mask_aff (L :  m.-choose n) : 'M_(n, m.+1) :=
   \matrix_(i < n) (mask L b_base)`_i.
 
-Lemma mask_matrixP (L : {m ~ n}.-mask) (i : 'I_n):
+Lemma mask_matrixP (L : m.-choose n) (i : 'I_n):
   row i (mask_matrix L) = (mask L A_base)`_i.
 Proof. by rewrite rowK. Qed.
 
-Lemma mask_affP (L : {m ~ n}.-mask) (i : 'I_n):
+Lemma mask_affP (L : m.-choose n) (i : 'I_n):
   row i (mask_aff L) = (mask L b_base)`_i.
-Proof. by rewrite rowK. Qed.  
+Proof. by rewrite rowK. Qed.
 
-Lemma mtx_vbasisE (L : {m ~ n}.-mask) :
+Lemma mtx_vbasisE (L : m.-choose n) :
   reflect (basis_of fullv (mask L A_base)) (mask_matrix L \in unitmx).
 Proof.
 (*apply/(iffP idP).
@@ -161,7 +112,7 @@ Definition sat_mask (mas : bitseq) (x : 'M[R]_(n, m.+1)) :=
 Definition eq_mask (mas : bitseq) (x : 'M[R]_(n, m.+1)) :=
   all (fun l => sat_eq l x) (mask mas base).
 
-Lemma prelexi_mask_point (L : {m ~ n}.-mask) x :
+Lemma prelexi_mask_point (L : m.-choose n) x :
   eq_mask L x ->
   (mask_matrix L) *m x = (mask_aff L).
 Proof.
@@ -206,18 +157,14 @@ Qed.
 
 
 Definition lexi_graph :=
-  create_graph
-  [fset L | L : lexi_basis]
-  (fun L1 L2 => (inter_card L1 L2 == n-1)%nat).
+  create_graph [fset L | L : lexi_basis]
+               (fun L1 L2 => ##| maskI L1 L2 | == (n-1)%N).
 
+(* TODO: map sur des graphes
+   + lemme d'isomorphisme entre ces graphes *)
 Definition lexi_mask_graph :=
-  create_graph
-  [fset val (val L) | L : lexi_basis]
-  (fun L1 L2 => (inter_card L1 L2 == n-1)%nat).
-
-(*TODO : map sur des graphes*)
-
-(*TODO : lemme d'isomorphisme entre ces graphes*)
+  create_graph [fset (val (val L)) | L : lexi_basis]
+               (fun L1 L2 => ##| maskI L1 L2 | == (n-1)%N).
 
 Lemma lexi_regular : regular lexi_graph n.
 Proof. Admitted.
@@ -252,8 +199,6 @@ Section LowPointIng.
 Context (k : bitseq).
 Hypothesis k_mem : PG.mem_vertex k g.
 
-
-
 Lemma mem_low_size: size k == m.
 Proof.
 move/PG.vertex_allP: g_struct=> H.
@@ -263,14 +208,13 @@ Qed.
 
 Definition kt := Tuple mem_low_size.
 
-Lemma mem_low_card: #|kt |^T == n.
+Lemma mem_low_card: ##|kt| == n.
 Proof.
 move/PG.vertex_allP: g_struct=> H.
 by case/PG.vtx_memE: k_mem=> e /H/and4P [].
 Qed.
 
-Definition km := FixedMask mem_low_card.
-
+Definition km := CMask mem_low_card.
 
 Lemma low_pointP:
   exists2 e, PG.find_vertex km g = Some e & e.1 = low_point km.
@@ -301,11 +245,11 @@ Definition col_mask :=
   [seq (mask_matrix target_Po km) *m (col j (low_point km)) != 0 |
   j <- behead (enum 'I_m.+1)].
 
-Lemma col_mask_card: #|col_mask |^T == n.
+Lemma col_mask_card: ##| col_mask | == n.
 Proof.
 Admitted.
 
-Definition fcol_mask := FixedMask col_mask_card.
+Definition fcol_mask := CMask col_mask_card.
 
 Program Definition extr_low_point :=
   colsub (fmask_nth fcol_mask) (col' 0 (low_point k)).

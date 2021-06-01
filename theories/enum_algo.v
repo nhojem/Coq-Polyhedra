@@ -1,6 +1,6 @@
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 From Bignums Require Import BigQ.
-Require Import extra_misc inner_product vector_order enumeration graph mask.
+Require Import extra_misc inner_product vector_order graph mask.
 Require Import Setoid.
 
 Set Implicit Arguments.

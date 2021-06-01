@@ -71,14 +71,8 @@ Definition graph0 : graph T :=
 Definition add_vertex (g : graph T) (v : T) :=
   Graph g.[v <-? Some fset0].
 
-Definition add_vertices (g : graph T) (vs : {fset T}) :=
-  foldr (fun v g0 => add_vertex g0 v) g (enum_fset vs).
-
 Definition add_edge (g : graph T) (v1 v2 : T) :=
   Graph g.[v1 <- Some (v2 |` odflt fset0 (g v1))].
-
-Definition add_edges (g : graph T) (S : {fset T * T}) :=
-  foldr (fun e g0 => add_edge g0 e.1 e.2) g (enum_fset S).
 
 Definition successors (g : graph T) (v : T) : {fset T} :=
   odflt fset0 (g v).
@@ -92,16 +86,20 @@ Definition edges (g : graph T) : rel T :=
 Definition predecessors (g : graph T) (v : T) : {fset T} :=
   [fset x in vertices g | edges g x v].
 
-Definition create_graph (V: {fset T}) (E : rel T) : graph T :=
-  let g0 := add_vertices graph0 V in
-  add_edges g0 [fset ((e1, e2) : T * T) | e1 in V, e2 in V & E e1 e2].
+(* Introduce notation *)
+(* create_graph -> mk_graph *)
+Definition create_graph (V : {fset T}) (E : rel T) : graph T :=
+  Graph [fsfun v in V => Some [fset w | w in V & E v w] | None].
 
 Section Lemmas.
 Context (V : {fset T}) (E : rel T).
 
 Lemma vtx_create_graph : vertices (create_graph V E) = V.
 Proof.
-Admitted.
+apply/eqP; rewrite eqEfsubset; apply/andP; split.
+- exact: finsupp_sub.
+- by apply/fsubsetP=> x; rewrite mem_finsupp fsfunE => ->.
+Qed.
 
 End Lemmas.
 

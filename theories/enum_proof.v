@@ -162,8 +162,8 @@ Definition lexi_graph :=
 
 (* TODO: map sur des graphes
    + lemme d'isomorphisme entre ces graphes *)
-Definition lexi_mask_graph :=
-  create_graph [fset (val (val L)) | L : lexi_basis]
+Definition lexi_mask_graph : graph [choiceType of bitseq] :=
+  create_graph ((fun x : lexi_basis => x : bitseq) @` [fset L | L : lexi_basis])
                (fun L1 L2 => ##| maskI L1 L2 | == (n-1)%N).
 
 Lemma lexi_regular : regular lexi_graph n.
@@ -276,9 +276,8 @@ Proof. by rewrite low_lexipoint mem_low_sat. Qed.
 
 Definition low_lexibasis := Lexb low_presat.
 
-
-Lemma mem_foo: km \in vertices (lexi_mask_graph target_Po).
-Proof. by rewrite vtx_create_graph; apply/imfsetP; exists low_lexibasis. Qed.
+Lemma mem_foo: k \in vertices (lexi_mask_graph target_Po).
+Proof. by rewrite vtx_create_graph; apply/imfsetP; exists low_lexibasis; rewrite ?in_imfset. Qed.
 
 End LowPointIng.
 

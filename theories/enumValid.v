@@ -30,7 +30,7 @@ Definition perturbation_seq : seq plrel :=
   (fun x: lrel * 'I_m => (x.1.1^T , create_perturbation x.1.2 x.2))
   (zip base (ord_enum m)).
 
-Lemma size_pert: size perturbation_seq == m.
+Lemma size_pert_: size perturbation_seq == m.
 Proof.
 rewrite size_map size_zip size_tuple.
 suff ->: (size (ord_enum m)) = m by rewrite minnn.
@@ -39,7 +39,10 @@ apply/eqP; rewrite -all_count; apply/allP=> i.
 by rewrite mem_iota; case/andP=> _; rewrite add0n.
 Qed.
 
-Definition perturbation := Tuple size_pert.
+Definition perturbation := Tuple size_pert_.
+
+Lemma size_pert : size perturbation = m.
+Proof. apply/eqP/size_pert_. Qed.
 
 End Perturbation.
 
@@ -48,10 +51,8 @@ Section FixedMask.
 Context (m n : nat).
 Record fixed_mask := FixedMask {
   fmask :> m.-tuple bool;
-  _ : card_bitseq fmask == n
+  _ : #|fmask |^T == n
 }.
-
-(*TODO notation*)
 
 Canonical fmask_subType := Eval hnf in [subType for fmask].
 Definition fmask_eqMixin := [eqMixin of fixed_mask by <:].
@@ -64,8 +65,11 @@ Canonical fmask_subCountType := [subCountType of fixed_mask].
 Definition fmask_finMixin := [finMixin of fixed_mask by <:].
 Canonical fmask_finType := FinType _ fmask_finMixin.
 
-Lemma card_fmask (mas : fixed_mask) : (card_bitseq mas = n) * (count id mas = n).
+Lemma card_fmask (mas : fixed_mask) : #|mas |^T = n.
 Proof. by case: mas => ? /= /eqP. Qed.
+
+Lemma size_fmask (mas : fixed_mask) : size mas = m.
+Proof. by rewrite size_tuple. Qed.
 
 Definition fmask_nth_ (mas : fixed_mask) (k : 'I_n) :=
   nth m (mask mas (iota 0 m)) k.
@@ -86,6 +90,9 @@ Admitted.
 
 End FixedMask.
 
+Notation "{ m ~ n }.-mask" := (fixed_mask m n)
+  (at level 0, format "{ m  ~  n }.-mask").
+
 Section LexiBasis.
 
 Context (R : realFieldType) (n m : nat).
@@ -94,14 +101,8 @@ Context (base : m.-tuple (plrel n m R)).
 Definition A_base := unzip1 base.
 Definition b_base := unzip2 base.
 
-(*TODO card_mask mask m.-tuple + card_bitseq == n*)
-(* soit I : cars_mask,
-alors on a f : 'I_n -> 'I_m tq f i = position du i-eme 1 dans I, f monotone*)
-(*colsub avec f*)
-(*lexi_basis = lexi_prebasis + admissibilité (dans le cadre perturbé)*)
-
 Record lexi_prebasis := Lexi {
-  s :> fixed_mask m n;
+  s :> {m ~ n}.-mask;
   _ : basis_of fullv (mask s A_base);
   }.
 
@@ -116,32 +117,24 @@ Canonical lexipre_subCountType := [subCountType of lexi_prebasis].
 Definition lexipre_finMixin := [finMixin of lexi_prebasis by <:].
 Canonical lexipre_finType := FinType _ lexipre_finMixin.
 
-(*TODO : notation card_bitseq*)
-
-Lemma lexi_card (L : lexi_prebasis) : (card_bitseq L = n) * (count id L = n).
-Proof. by rewrite !card_fmask. Qed.
-
-Lemma lexi_size (L : lexi_prebasis) : size L = m.
-Proof. by rewrite size_tuple. Qed.
-
 Lemma lexi_vbasis (L : lexi_prebasis) : basis_of fullv (mask L A_base).
 Proof. by case: L => ? /= []. Qed.
 
-Definition mask_matrix (L : fixed_mask m n) : 'M_n :=
+Definition mask_matrix (L : {m ~ n}.-mask) : 'M_n :=
   \matrix_(i < n) ((mask L A_base)`_i).
 
-Definition mask_aff (L : fixed_mask m n) : 'M_(n, m.+1) :=
+Definition mask_aff (L :  {m ~ n}.-mask) : 'M_(n, m.+1) :=
   \matrix_(i < n) (mask L b_base)`_i.
 
-Lemma mask_matrixP (L : fixed_mask m n) (i : 'I_n):
+Lemma mask_matrixP (L : {m ~ n}.-mask) (i : 'I_n):
   row i (mask_matrix L) = (mask L A_base)`_i.
 Proof. by rewrite rowK. Qed.
 
-Lemma mask_affP (L : fixed_mask m n) (i : 'I_n):
+Lemma mask_affP (L : {m ~ n}.-mask) (i : 'I_n):
   row i (mask_aff L) = (mask L b_base)`_i.
 Proof. by rewrite rowK. Qed.  
 
-Lemma mtx_vbasisE (L : fixed_mask m n) :
+Lemma mtx_vbasisE (L : {m ~ n}.-mask) :
   reflect (basis_of fullv (mask L A_base)) (mask_matrix L \in unitmx).
 Proof.
 (*apply/(iffP idP).
@@ -168,7 +161,7 @@ Definition sat_mask (mas : bitseq) (x : 'M[R]_(n, m.+1)) :=
 Definition eq_mask (mas : bitseq) (x : 'M[R]_(n, m.+1)) :=
   all (fun l => sat_eq l x) (mask mas base).
 
-Lemma prelexi_mask_point (L : fixed_mask m n) x :
+Lemma prelexi_mask_point (L : {m ~ n}.-mask) x :
   eq_mask L x ->
   (mask_matrix L) *m x = (mask_aff L).
 Proof.
@@ -203,7 +196,7 @@ Proof. by case: L. Qed.
 Lemma lexi_eq (L : lexi_basis) : eq_mask L (lexi_point L).
 Proof.
 apply/allP => /= e /nthP /= /(_ 0) [i].
-rewrite size_mask ?size_tuple // lexi_card=> i_ord <-.
+rewrite size_mask ?size_tuple // card_fmask=> i_ord <-.
 rewrite /lexi_point /sat_eq mulmxA.
 have ->: ((mask L base)`_i).1 = row (Ordinal i_ord) (mask_matrix L) by
   rewrite mask_matrixP -map_mask (nth_map 0) ?size_mask ?size_tuple ?card_fmask.
@@ -256,47 +249,59 @@ Definition low_point k := if PG.label k g is Some l then l else 0.
 
 Section LowPointIng.
 
-Context (k : fixed_mask m n).
+Context (k : bitseq).
 Hypothesis k_mem : PG.mem_vertex k g.
 
+
+
+Lemma mem_low_size: size k == m.
+Proof.
+move/PG.vertex_allP: g_struct=> H.
+case/PG.vtx_memE: k_mem=> e /H/and4P [].
+by rewrite size_pert.
+Qed.
+
+Definition kt := Tuple mem_low_size.
+
+Lemma mem_low_card: #|kt |^T == n.
+Proof.
+move/PG.vertex_allP: g_struct=> H.
+by case/PG.vtx_memE: k_mem=> e /H/and4P [].
+Qed.
+
+Definition km := FixedMask mem_low_card.
+
+
 Lemma low_pointP:
-  exists2 e, PG.find_vertex k g = Some e & e.1 = low_point k.
+  exists2 e, PG.find_vertex km g = Some e & e.1 = low_point km.
 Proof.
 move: k_mem=> /PG.vtx_memE [].
 by rewrite /low_point /PG.label; case=> a b ->; exists (a,b).
 Qed.
 
 Lemma mem_low_sat:
-  all_sat target_Po (low_point k).
+  all_sat target_Po (low_point km).
 Proof.
 move/PG.vertex_allP: g_vtx low_pointP => H [e].
 by case/H/andP => _ ? <-.
 Qed.
 
 Lemma mem_low_mask:
-  eq_mask target_Po k (low_point k).
+  eq_mask target_Po km (low_point km).
 Proof.
 move/PG.vertex_allP: g_vtx low_pointP => H [e].
 by case/H/andP => ? _ <-.
 Qed.
 
-
-Lemma mem_low_card:
-  card_bitseq k = n.
-Proof.
-move/PG.vertex_allP: g_struct=> H.
-by case/PG.vtx_memE: k_mem=> e /H/and4P [_ /eqP].
-Qed.
-
 Lemma low_mtx_affP:
-  (mask_matrix target_Po k) *m (low_point k) = (mask_aff target_Po k).
+  (mask_matrix target_Po km) *m (low_point km) = (mask_aff target_Po km).
 Proof. exact/prelexi_mask_point/mem_low_mask. Qed.
 
 Definition col_mask :=
-  [seq (mask_matrix target_Po k) *m (col j (low_point k)) != 0 |
+  [seq (mask_matrix target_Po km) *m (col j (low_point km)) != 0 |
   j <- behead (enum 'I_m.+1)].
 
-Lemma col_mask_card: card_bitseq col_mask == n.
+Lemma col_mask_card: #|col_mask |^T == n.
 Proof.
 Admitted.
 
@@ -306,24 +311,19 @@ Program Definition extr_low_point :=
   colsub (fmask_nth fcol_mask) (col' 0 (low_point k)).
 Next Obligation. by rewrite card_ord. Defined.
 
-(*TODO : c'est l'identité*)
-Lemma extr_low_pointE : is_perm_mx ((mask_matrix target_Po k) *m extr_low_point).
+Lemma extr_low_pointE : (mask_matrix target_Po km) *m extr_low_point = 1%:M.
 Proof.
 Admitted.
 
-Lemma extr_low_inv : (mask_matrix target_Po k) \in unitmx.
-Proof.
-case/is_perm_mxP: extr_low_pointE => s is_perms.
-move: (unitmx_perm [realFieldType of rat] s); rewrite -is_perms.
-rewrite unitmx_mul; by case/andP.
-Qed.
+Lemma extr_low_inv : (mask_matrix target_Po km) \in unitmx.
+Proof. by case/mulmx1_unit: extr_low_pointE. Qed.
 
-Lemma low_vbasis: basis_of fullv (mask k (A_base target_Po)).
+Lemma low_vbasis: basis_of fullv (mask km (A_base target_Po)).
 Proof. exact/mtx_vbasisE/extr_low_inv. Qed.
 
 Definition low_prebasis := Lexi low_vbasis.
 
-Lemma low_lexipoint : lexi_point low_prebasis = low_point k.
+Lemma low_lexipoint : lexi_point low_prebasis = low_point km.
 Proof.
 Admitted.
 
@@ -331,6 +331,10 @@ Lemma low_presat : all_sat target_Po (lexi_point low_prebasis).
 Proof. by rewrite low_lexipoint mem_low_sat. Qed.
 
 Definition low_lexibasis := Lexb low_presat.
+
+
+Lemma mem_foo: km \in vertices (lexi_mask_graph target_Po).
+Proof. by rewrite vtx_create_graph; apply/imfsetP; exists low_lexibasis. Qed.
 
 End LowPointIng.
 

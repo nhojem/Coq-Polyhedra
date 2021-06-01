@@ -96,8 +96,18 @@ Definition create_graph (V: {fset T}) (E : rel T) : graph T :=
   let g0 := add_vertices graph0 V in
   add_edges g0 [fset ((e1, e2) : T * T) | e1 in V, e2 in V & E e1 e2].
 
+Section Lemmas.
+Context (V : {fset T}) (E : rel T).
+
+Lemma vtx_create_graph : vertices (create_graph V E) = V.
+Proof.
+Admitted.
+
+End Lemmas.
 
 End GraphBasics.
+
+
 
 Section Connected.
 Context (T : choiceType) (G : graph T).

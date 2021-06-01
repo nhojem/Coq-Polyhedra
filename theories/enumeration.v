@@ -16,10 +16,10 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Notation "#| p |^T" := (count id p) (at level 0, format "#| p  |^T"). 
 Section Misc.
 
-Definition card_bitseq (p : bitseq) :=
-  count id p.
+
 
 Fixpoint inter_card (p q : bitseq) :=
   match p,q with
@@ -75,7 +75,7 @@ Definition vertex_consistent :=
 
 Definition neighbour_condition I :=
   [&& (size I == size Po),
-  card_bitseq I == n,
+  #|I |^T == n,
   (AlgoGraph.neighbour_all
     (fun J => inter_card I J == (n-1)%nat) G I) &
   (AlgoGraph.nb_neighbours I G == Some n)].

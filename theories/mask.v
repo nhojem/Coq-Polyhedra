@@ -30,7 +30,7 @@ Canonical cmask_subCountType := [subCountType of cmask].
 Definition cmask_finMixin := [finMixin of cmask by <:].
 Canonical cmask_finType := FinType _ cmask_finMixin.
 
-Lemma card_fmask (mas : cmask) : ##|mas | = n.
+Lemma card_fmask (mas : cmask) : ##|mas| = n.
 Proof. by case: mas => ? /= /eqP. Qed.
 
 Lemma size_fmask (mas : cmask) : size mas = m.
@@ -39,13 +39,16 @@ Proof. by rewrite size_tuple. Qed.
 Definition fmask_nth_ (mas : cmask) (k : 'I_n) :=
   nth m (mask mas (iota 0 m)) k.
 
-Lemma fmask_nth_lt (mas : cmask) (k : 'I_n) :
-  (fmask_nth_ mas k < m)%nat.
-Proof.
-Admitted.
+Program Definition fmask_nth (mas : cmask) (k : 'I_n) :=
+  @Ordinal m (fmask_nth_ mas k) _.
 
-Definition fmask_nth (mas : cmask) (k : 'I_n) :=
-  Ordinal (fmask_nth_lt mas k).
+Next Obligation.
+suff: fmask_nth_ mas k \in iota 0 m
+  by rewrite mem_iota add0n => /andP [].
+apply/(mem_subseq (mask_subseq mas _))/mem_nth.
+rewrite size_mask ?card_fmask ?ltn_ord //.
+by rewrite size_iota size_tuple.
+Qed.
 
 Lemma fmask_nth_mono (mas : cmask) :
   {mono (fmask_nth mas) : x y/ (x < y)%nat}.

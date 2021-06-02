@@ -1809,7 +1809,7 @@ Qed.
 
 Definition mk_affine_fun x := linfun (Linear (mk_affine_fun0_linear x)).
 
-Lemma befstE x : (befst \o (mk_affine_fun x) = \1)%VF.
+Lemma befstE x : (\fst \o (mk_affine_fun x) = \1)%VF.
 Proof.
 apply/lfunP => v.
 by rewrite comp_lfunE !lfunE.
@@ -1819,7 +1819,7 @@ Lemma dim_mk_affine_fun U Ω : (\dim ((mk_affine_fun Ω) @: U) = \dim U)%N.
 Proof.
 apply/limg_dim_eq/subv_anti/andP; split; rewrite ?sub0v //.
 apply/subvP => v; rewrite memv_cap memv_ker => /andP [h /eqP].
-move/(congr1 befst); rewrite -comp_lfunE befstE id_lfunE linear0 => ->.
+move/(congr1 \fst); rewrite -comp_lfunE befstE id_lfunE linear0 => ->.
 by rewrite memv0.
 Qed.
 
@@ -1856,7 +1856,7 @@ by apply/proper0P; exists Ω; rewrite in_mk_affine addrN mem0v.
 Qed.
 
 Lemma affine_orth (U : {vspace lrel[R]_n}) x :
-  x \in (affine U) -> affine U = [affine (befst @: U)^OC & x].
+  x \in (affine U) -> affine U = [affine (\fst @: U)^OC & x].
 Proof.
 move => x_in_aff.
 apply/poly_eqP => y; rewrite in_mk_affine.
@@ -1868,7 +1868,7 @@ apply/idP/idP => [y_in_aff |].
   by rewrite addrN.
 - move/orthvP => h.
   apply/in_affine => e e_in_U.
-  move/(memv_img befst)/h/eqP: (e_in_U); rewrite vdotBr subr_eq0 lfunE /= inE => /eqP ->.
+  move/(memv_img \fst)/h/eqP: (e_in_U); rewrite vdotBr subr_eq0 lfunE /= inE => /eqP ->.
   by rewrite -in_hp; apply/(in_affine U).
 Qed.
 
@@ -1944,7 +1944,7 @@ Qed.
 
 (*
 Lemma affine_dim_fst (U : {vspace lrel[R]_n}) :
-  affine U `>` ([poly0]) -> (\dim U = \dim (befst @: U))%N.
+  affine U `>` ([poly0]) -> (\dim U = \dim (\fst @: U))%N.
 Proof.
 (* TODO: same trick as before, to be factored out *)
 set base := [fset e in ((vbasis U) : seq _)]%fset : {fset lrel[R]_n}.
@@ -1953,7 +1953,7 @@ have ->: U = << base >>%VS.
   apply/subv_anti/andP; split; apply/sub_span; by move => ?; rewrite inE.
 move => /proper0P [x x_in_P].
 have ->: base = base%:fsub by done.
-suff /limg_dim_eq <-: (<< base >> :&: lker befst)%VS = 0%VS by [].
+suff /limg_dim_eq <-: (<< base >> :&: lker \fst)%VS = 0%VS by [].
 apply/eqP; rewrite -subv0.
 apply/subvP => e; rewrite memv_cap memv_ker memv0 => /andP [e_in /eqP f_e_eq0].
 have e1_eq0 : e.1 = 0 by rewrite lfunE in f_e_eq0.
@@ -1997,13 +1997,13 @@ Lemma affine_subset (U V : {vspace lrel[R]_n}) :
 Proof.
 move/proper0P => [x x_in_affV] /poly_leP aff_sub.
 have x_in_affU : x \in affine U by exact: aff_sub.
-have: ((befst @: V)^OC <= (befst @: U)^OC)%VS.
+have: ((\fst @: V)^OC <= (\fst @: U)^OC)%VS.
 - apply/subvP => d d_in.
   pose y := x + d.
   have /aff_sub: y \in affine V by apply/(in_affine_orth _ x_in_affV); exists d.
   by move/(in_affine_orth _ x_in_affU) => [d' d'_in /addrI ->].
 rewrite orthS => /subvP fst_sub; apply/subvP => e e_in_U.
-move/(memv_img befst)/fst_sub/memv_imgP: (e_in_U) => [e' e'_in_V fst_eq].
+move/(memv_img \fst)/fst_sub/memv_imgP: (e_in_U) => [e' e'_in_V fst_eq].
 suff ->: e = e' by [].
 rewrite !lfunE /= in fst_eq.
 apply/(befst_inj (x := x) _ _ fst_eq).
@@ -2137,7 +2137,7 @@ Lemma dual_opt_sol (c : 'cV[R]_n) (H : bounded 'P(base) c) :
 Proof.
 move/(farkas (boundedN0 H)): (opt_value_lower_bound H).
 case=> [w w_weight [w_comb1 w_comb2]]; exists w => //.
-apply/eqP/be_eqP; split=> //; apply/le_anti/andP; split=> //.
+apply/eqP/lrel_eqP; split=> //; apply/le_anti/andP; split=> //.
 case: (opt_point H) => [x x_in_P <-].
 move/poly_leP/(_ _ x_in_P): (dual_sol_lower_bound w_weight).
 by rewrite inE w_comb1.

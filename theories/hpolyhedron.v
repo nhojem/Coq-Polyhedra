@@ -330,7 +330,7 @@ Let b :=    \col_(i < m) (fnth i).2.
 
 Lemma fnth_baseE i : @fnth _ base i = [< col i A^T, b i 0 >].
 Proof.
-apply/eqP/be_eqP => /=; split.
+apply/eqP/lrel_eqP => /=; split.
 * by apply/colP=> k; rewrite !mxE. * by rewrite mxE.
 Qed.
 
@@ -341,13 +341,13 @@ rewrite (combinewE (finsupp_vect_to_fsfun _)).
 pose h (i : 'I_m) := [`fnthP i]%fset.
 rewrite (reindex h) /=; last first.
 + by apply/onW_bij/(Bijective (@frankK _ _) (@fnthK _ _)).
-apply: (can_inj (@col_to_base_eltK _ _)) => /=.
-rewrite base_elt_to_colM raddf_sum /= mulmx_sum_col.
+apply: (can_inj (@col_to_lrelK _ _)) => /=.
+rewrite lrel_to_colM raddf_sum /= mulmx_sum_col.
 apply: eq_bigr=> i _; rewrite linearZ /=.
 rewrite /vect_to_fsfun fsfun_ffun insubT /=; first by apply: fnthP.
 move=> hin; rewrite [hin](bool_irrelevance _ (fnthP i)) frankK.
 rewrite tr_row_mx col_col_mx; apply/colP=> j.
-rewrite /base_elt_to_col !fnth_baseE /=.
+rewrite /lrel_to_col !fnth_baseE /=.
 rewrite (_ : const_mx _ = col i b^T) //.
 by apply/colP=> k; rewrite !mxE.
 Qed.

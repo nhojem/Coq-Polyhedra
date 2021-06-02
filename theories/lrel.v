@@ -39,61 +39,61 @@ Reserved Notation "[< A , b >]"
 Section Base.
 Context {R : Type} (n : nat).
 
-Variant base_elt_type : predArgType := BaseElt of ('cV[R]_n * R).
+Variant lrel_type : predArgType := BaseElt of ('cV[R]_n * R).
 
-Coercion base_elt_val b := let: BaseElt b := b in b.
+Coercion lrel_val b := let: BaseElt b := b in b.
 
-Canonical base_elt_subType := Eval hnf in [newType for base_elt_val].
+Canonical lrel_subType := Eval hnf in [newType for lrel_val].
 End Base.
 
-Notation "'lrel' [ R ]_ n" := (@base_elt_type R n).
+Notation "'lrel' [ R ]_ n" := (@lrel_type R n).
 Notation "'lrel'" := (lrel[_]_(_)).
 Notation "'base_t' [ R , n ]" := {fset lrel[R]_n}.
 Notation "'base_t'" := (base_t[_,_]).
 Notation "[< A , b >]" := (BaseElt (A, b)).
 
 (* -------------------------------------------------------------------- *)
-Definition be_eqMixin (R : eqType) n :=
+Definition lrel_eqMixin (R : eqType) n :=
   Eval hnf in [eqMixin of lrel[R]_n by <:].
-Canonical be_eqType (R : eqType) n:=
-  Eval hnf in EqType lrel[R]_n  (be_eqMixin R n).
-Definition be_choiceMixin (R : choiceType) n :=
+Canonical lrel_eqType (R : eqType) n:=
+  Eval hnf in EqType lrel[R]_n  (lrel_eqMixin R n).
+Definition lrel_choiceMixin (R : choiceType) n :=
   [choiceMixin of lrel[R]_n by <:].
-Canonical be_choiceType (R : choiceType) n :=
-  Eval hnf in ChoiceType lrel[R]_n (be_choiceMixin R n).
-Definition be_countMixin (R : countType) n :=
+Canonical lrel_choiceType (R : choiceType) n :=
+  Eval hnf in ChoiceType lrel[R]_n (lrel_choiceMixin R n).
+Definition lrel_countMixin (R : countType) n :=
   [countMixin of lrel[R]_n by <:].
-Canonical be_countType (R : countType) n :=
-  Eval hnf in CountType lrel[R]_n (be_countMixin R n).
-Canonical be_subCountType (R : countType) n :=
+Canonical lrel_countType (R : countType) n :=
+  Eval hnf in CountType lrel[R]_n (lrel_countMixin R n).
+Canonical lrel_subCountType (R : countType) n :=
   Eval hnf in [subCountType of lrel[R]_n].
-Definition be_finMixin (R : finType) n :=
+Definition lrel_finMixin (R : finType) n :=
   [finMixin of lrel[R]_n by <:].
-Canonical be_finType (R : finType) n :=
-  Eval hnf in FinType lrel[R]_n (be_finMixin R n).
-Canonical be_subFinType (R : finType) n :=
+Canonical lrel_finType (R : finType) n :=
+  Eval hnf in FinType lrel[R]_n (lrel_finMixin R n).
+Canonical lrel_subFinType (R : finType) n :=
   Eval hnf in [subFinType of lrel[R]_n].
 
 (* -------------------------------------------------------------------- *)
 Section BaseTheory.
 Context (R : Type) (n : nat).
 
-Lemma beW (P : lrel[R]_n -> Prop) :
+Lemma lrelW (P : lrel[R]_n -> Prop) :
   (forall A b, P [<A, b>]) -> (forall b, P b).
 Proof. by move=> ih [[]]. Qed.
 
-Lemma beE (b : lrel[R]_n) : [<b.1, b.2>] = b.
-Proof. by elim/beW: b. Qed.
+Lemma lrelE (b : lrel[R]_n) : [<b.1, b.2>] = b.
+Proof. by elim/lrelW: b. Qed.
 End BaseTheory.
 
-Lemma be_eqE (R : eqType) n (b1 b2 : lrel[R]_n) :
+Lemma lrel_eqE (R : eqType) n (b1 b2 : lrel[R]_n) :
   (b1 == b2) = [&& b1.1 == b2.1 & b1.2 == b2.2].
 Proof. by []. Qed.
 
-Lemma be_eqP (R : eqType) n (b1 b2 : lrel[R]_n) :
+Lemma lrel_eqP (R : eqType) n (b1 b2 : lrel[R]_n) :
   reflect (b1.1 = b2.1 /\ b1.2 = b2.2) (b1 == b2).
 Proof.
-rewrite be_eqE; apply: (iffP andP).
+rewrite lrel_eqE; apply: (iffP andP).
 + by case=> [/eqP-> /eqP->]. + by case=> -> ->.
 Qed.
 
@@ -101,21 +101,21 @@ Qed.
 Section BaseEncoding.
 Context {R : eqType} (n : nat).
 
-Definition base_elt_to_col (v : lrel[R]_n) : 'cV[R]_(n+1) :=
+Definition lrel_to_col (v : lrel[R]_n) : 'cV[R]_(n+1) :=
   col_mx v.1 (const_mx v.2).
 
-Definition col_to_base_elt (v : 'cV[R]_(n+1)) : lrel[R]_n :=
+Definition col_to_lrel (v : 'cV[R]_(n+1)) : lrel[R]_n :=
   [< usubmx v, dsubmx v 0 0 >].
 
-Lemma base_elt_to_colK : cancel col_to_base_elt base_elt_to_col.
+Lemma lrel_to_colK : cancel col_to_lrel lrel_to_col.
 Proof.
 move=> c; apply/colP=> i; rewrite mxE.
 by case: splitP' => j -> /=; rewrite !mxE ?ord1.
 Qed.
 
-Lemma col_to_base_eltK : cancel base_elt_to_col col_to_base_elt.
+Lemma col_to_lrelK : cancel lrel_to_col col_to_lrel.
 Proof.
-elim/beW=> A b; apply/eqP/be_eqP=> /=; split.
+elim/lrelW=> A b; apply/eqP/lrel_eqP=> /=; split.
 + by apply/colP=> i; rewrite mxE col_mxEu.
 + by rewrite mxE col_mxEd mxE.
 Qed.
@@ -125,8 +125,8 @@ End BaseEncoding.
 Section BaseEncodingTheory.
 Context {R : realFieldType} (n m : nat).
 
-Lemma base_elt_to_colM (A : 'M[R]_(n, m)) (b : 'cV[R]_n) (x : 'cV[R]_n) :
-  base_elt_to_col [< A^T *m x, '[b, x] >] = (row_mx A b)^T *m x.
+Lemma lrel_to_colM (A : 'M[R]_(n, m)) (b : 'cV[R]_n) (x : 'cV[R]_n) :
+  lrel_to_col [< A^T *m x, '[b, x] >] = (row_mx A b)^T *m x.
 Proof.
 apply/colP=> i; rewrite ![in X in X = _]mxE /=; case: splitP'.
 + by move=> j ->; rewrite tr_row_mx mul_col_mx col_mxEu.
@@ -141,34 +141,34 @@ Context {R : zmodType} {n : nat}.
 
 Implicit Types (b : lrel[R]_n).
 
-Definition be0         := [< (0 : 'cV[R]_n), (0 : R) >].
-Definition beadd b1 b2 := [< b1.1 + b2.1, b1.2 + b2.2 >].
-Definition beopp b     := [< -b.1, -b.2 >].
+Definition lrel0         := [< (0 : 'cV[R]_n), (0 : R) >].
+Definition lrel_add b1 b2 := [< b1.1 + b2.1, b1.2 + b2.2 >].
+Definition lrel_opp b     := [< -b.1, -b.2 >].
 
-Lemma be_zmod_mixin :
-  [/\ associative beadd
-    , commutative beadd
-    , left_id be0 beadd
-    & left_inverse be0 beopp beadd].
+Lemma lrel_zmod_mixin :
+  [/\ associative lrel_add
+    , commutative lrel_add
+    , left_id lrel0 lrel_add
+    & left_inverse lrel0 lrel_opp lrel_add].
 Proof. split.
-+ by move=> b1 b2 b3; rewrite /beadd 2!addrA.
-+ by move=> b1 b2; rewrite /beadd [b2.1 + _]addrC [b2.2 + _]addrC.
-+ by move=> b; rewrite /beadd 2!add0r beE.
-+ by move=> b; rewrite /beadd 2!addNr.
++ by move=> b1 b2 b3; rewrite /lrel_add 2!addrA.
++ by move=> b1 b2; rewrite /lrel_add [b2.1 + _]addrC [b2.2 + _]addrC.
++ by move=> b; rewrite /lrel_add 2!add0r lrelE.
++ by move=> b; rewrite /lrel_add 2!addNr.
 Qed.
 
-Let beaddA  := let: And4 h _ _ _ := be_zmod_mixin in h.
-Let beaddC  := let: And4 _ h _ _ := be_zmod_mixin in h.
-Let beadd0r := let: And4 _ _ h _ := be_zmod_mixin in h.
-Let beaddNr := let: And4 _ _ _ h := be_zmod_mixin in h.
+Let lrel_addA  := let: And4 h _ _ _ := lrel_zmod_mixin in h.
+Let lrel_addC  := let: And4 _ h _ _ := lrel_zmod_mixin in h.
+Let lrel_add0r := let: And4 _ _ h _ := lrel_zmod_mixin in h.
+Let lrel_addNr := let: And4 _ _ _ h := lrel_zmod_mixin in h.
 
-Definition be_zmodMixin := ZmodMixin beaddA beaddC beadd0r beaddNr.
-Canonical be_zmodType := Eval hnf in ZmodType lrel be_zmodMixin.
+Definition lrel_zmodMixin := ZmodMixin lrel_addA lrel_addC lrel_add0r lrel_addNr.
+Canonical lrel_zmodType := Eval hnf in ZmodType lrel lrel_zmodMixin.
 
-Lemma beaddE b1 b2 : b1 + b2 = [< b1.1 + b2.1, b1.2 + b2.2 >].
+Lemma lrel_addE b1 b2 : b1 + b2 = [< b1.1 + b2.1, b1.2 + b2.2 >].
 Proof. by []. Qed.
 
-Lemma beoppE b : -b = [< -b.1, -b.2 >].
+Lemma lrel_oppE b : -b = [< -b.1, -b.2 >].
 Proof. by []. Qed.
 End BaseZmod.
 
@@ -176,13 +176,13 @@ End BaseZmod.
 Section BaseEltEncodingZmodMorph.
 Context {R : zmodType} {n : nat}.
 
-Lemma base_elt_to_col_is_additive : additive (@base_elt_to_col R n).
+Lemma lrel_to_col_is_additive : additive (@lrel_to_col R n).
 Proof.
 move=> /= b1 b2; apply/colP=> i; rewrite !mxE.
 by case: splitP'=> j _; rewrite !mxE.
 Qed.
 
-Canonical base_elt_to_col_additive := Additive base_elt_to_col_is_additive.
+Canonical lrel_to_col_additive := Additive lrel_to_col_is_additive.
 End BaseEltEncodingZmodMorph.
 
 (* -------------------------------------------------------------------- *)
@@ -191,29 +191,29 @@ Context {R : ringType} {n : nat}.
 
 Implicit Types (b : lrel[R]_n).
 
-Definition bescale c b := [< c *: b.1, c * b.2 >].
+Definition lrel_scale c b := [< c *: b.1, c * b.2 >].
 
-Lemma be_lmod_mixin :
-  [/\ forall c1 c2 b, bescale c1 (bescale c2 b) = bescale (c1 * c2) b
-    , left_id 1 bescale
-    , right_distributive bescale +%R
-    & forall b, {morph bescale^~ b : x y / x + y}].
+Lemma lrel_lmod_mixin :
+  [/\ forall c1 c2 b, lrel_scale c1 (lrel_scale c2 b) = lrel_scale (c1 * c2) b
+    , left_id 1 lrel_scale
+    , right_distributive lrel_scale +%R
+    & forall b, {morph lrel_scale^~ b : x y / x + y}].
 Proof. split.
-+ by move=> c1 c2 b; rewrite /bescale scalerA mulrA.
-+ by move=> b; rewrite /bescale scale1r mul1r beE.
-+ by move=> c b1 b2; rewrite /bescale scalerDr !beaddE mulrDr.
-+ by move=> b c1 c2; rewrite /bescale beaddE scalerDl mulrDl.
++ by move=> c1 c2 b; rewrite /lrel_scale scalerA mulrA.
++ by move=> b; rewrite /lrel_scale scale1r mul1r lrelE.
++ by move=> c b1 b2; rewrite /lrel_scale scalerDr !lrel_addE mulrDr.
++ by move=> b c1 c2; rewrite /lrel_scale lrel_addE scalerDl mulrDl.
 Qed.
 
-Let bescaleA  := let: And4 h _ _ _ := be_lmod_mixin in h.
-Let bescale1  := let: And4 _ h _ _ := be_lmod_mixin in h.
-Let bescaleDr := let: And4 _ _ h _ := be_lmod_mixin in h.
-Let bescaleDl := let: And4 _ _ _ h := be_lmod_mixin in h.
+Let lrel_scaleA  := let: And4 h _ _ _ := lrel_lmod_mixin in h.
+Let lrel_scale1  := let: And4 _ h _ _ := lrel_lmod_mixin in h.
+Let lrel_scaleDr := let: And4 _ _ h _ := lrel_lmod_mixin in h.
+Let lrel_scaleDl := let: And4 _ _ _ h := lrel_lmod_mixin in h.
 
-Definition be_lmodMixin := LmodMixin bescaleA bescale1 bescaleDr bescaleDl.
-Canonical be_lmodType := Eval hnf in LmodType R lrel be_lmodMixin.
+Definition lrel_lmodMixin := LmodMixin lrel_scaleA lrel_scale1 lrel_scaleDr lrel_scaleDl.
+Canonical lrel_lmodType := Eval hnf in LmodType R lrel lrel_lmodMixin.
 
-Lemma bescaleE c b : c *: b = [< c *: b.1, c * b.2 >].
+Lemma lrel_scaleE c b : c *: b = [< c *: b.1, c * b.2 >].
 Proof. by []. Qed.
 End BaseLmod.
 
@@ -221,13 +221,13 @@ End BaseLmod.
 Section BaseEltEncodingLmodMorph.
 Context {R : ringType} {n : nat}.
 
-Lemma base_elt_to_col_is_scalable : scalable (@base_elt_to_col R n).
+Lemma lrel_to_col_is_scalable : scalable (@lrel_to_col R n).
 Proof.
 move=> c b /=; apply/colP=> i; rewrite !mxE.
 by case: splitP'=> j _; rewrite !mxE.
 Qed.
 
-Canonical base_elt_to_col_scalable := AddLinear base_elt_to_col_is_scalable.
+Canonical lrel_to_col_scalable := AddLinear lrel_to_col_is_scalable.
 End BaseEltEncodingLmodMorph.
 
 (* -------------------------------------------------------------------- *)
@@ -236,10 +236,10 @@ Context {R : zmodType} {n : nat}.
 
 Implicit Types (b : lrel[R]_n).
 
-Lemma beadd_p1E b1 b2 : (b1 + b2).1 = b1.1 + b2.1.
+Lemma lrel_add_p1E b1 b2 : (b1 + b2).1 = b1.1 + b2.1.
 Proof. by []. Qed.
 
-Lemma beadd_p2E b1 b2 : (b1 + b2).2 = b1.2 + b2.2.
+Lemma lrel_add_p2E b1 b2 : (b1 + b2).2 = b1.2 + b2.2.
 Proof. by []. Qed.
 End BaseMorph.
 
@@ -247,8 +247,8 @@ End BaseMorph.
 Section BaseVect.
 Context {R : fieldType} {n : nat}.
 
-Fact be_vect_iso : Vector.axiom (n+1) lrel[R]_n.
-  (* there should be a way to exploit the connection betwseen base_elt and 'cV[R]_n * R^o
+Fact lrel_vect_iso : Vector.axiom (n+1) lrel[R]_n.
+  (* there should be a way to exploit the connection betwseen lrel and 'cV[R]_n * R^o
    * for which there is a canonical vectType structure                                    *)
 Proof.
 pose f (e : lrel[R]_n) := (col_mx e.1 (e.2%:M))^T.
@@ -256,15 +256,15 @@ exists f.
 - move => ???; by rewrite /f raddfD /= -add_col_mx linearD /= -scale_scalar_mx -scale_col_mx linearZ.
 - pose g (x : 'rV_(n+1)) := [< (lsubmx x)^T, (rsubmx x) 0 0 >] : (lrel[R]_n).
   exists g; move => x.
-  + apply/eqP/be_eqP; split; rewrite /f /=.
+  + apply/eqP/lrel_eqP; split; rewrite /f /=.
     * by rewrite tr_col_mx row_mxKl trmxK.
     * by rewrite tr_col_mx row_mxKr tr_scalar_mx /= mxE mulr1n.
   + apply/rowP => i; case: (splitP' i) => [i' ->| i' ->].
     * by rewrite /f mxE col_mxEu !mxE.
     * by rewrite /f mxE col_mxEd mxE [i']ord1_eq0 mulr1n /= mxE.
 Qed.
-Definition be_vectMixin := VectMixin be_vect_iso.
-Canonical be_vectType := VectType R lrel[R]_n be_vectMixin.
+Definition lrel_vectMixin := VectMixin lrel_vect_iso.
+Canonical lrel_vectType := VectType R lrel[R]_n lrel_vectMixin.
 
 Lemma base_vect_subset (I I' : base_t[R,n]) :
   (I `<=` I')%fset -> (<< I >> <= << I' >>)%VS.
@@ -289,9 +289,11 @@ Lemma fst_lmorph : lmorphism (fst : lrel[R]_n -> 'cV_n).
 by [].
 Qed.
 
-Definition befst := linfun (Linear fst_lmorph).
+Definition lrel_fst := linfun (Linear fst_lmorph).
 
 End BaseVect.
+
+Notation "'\fst'" := lrel_fst.
 
 (* -------------------------------------------------------------------- *)
 Section Combine.
@@ -303,14 +305,14 @@ Lemma combineb1E w : (finsupp w `<=` base)%fset ->
   (combine w).1 = \sum_(v : base) w (val v) *: (val v).1.
 Proof.
 move=> le_wb; rewrite (combinewE le_wb).
-by apply (big_morph (fst \o val) beadd_p1E).
+by apply (big_morph (fst \o val) lrel_add_p1E).
 Qed.
 
 Lemma combineb2E w : (finsupp w `<=` base)%fset ->
   (combine w).2 = \sum_(v : base) w (val v) * (val v).2.
 Proof.
 move=> le_wb; rewrite (combinewE le_wb).
-by apply (big_morph (snd \o val) beadd_p2E). Qed.
+by apply (big_morph (snd \o val) lrel_add_p2E). Qed.
 
 Definition combinebE w (h : (finsupp w `<=` base)%fset) :=
   (@combineb1E w h, @combineb2E w h).

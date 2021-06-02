@@ -1186,7 +1186,7 @@ Lemma hull_mk_affine {P : 'poly[R]_n} {x} :
 Proof.
 elim/polybW: P => base P x_in_P.
 have P_prop0 : P `>` [poly0] by apply/proper0P; exists x.
-set U := (befst @: <<{eq P}>>)^OC%VS.
+set U := (\fst @: <<{eq P}>>)^OC%VS.
 have hullP : hull P = [affine U & x].
 - by rewrite -affine_orth -hullN0_eq //; apply/(poly_leP (subset_hull _)).
 exists U => //; by rewrite dim_hull hullP dim_affine /=.
@@ -1209,11 +1209,11 @@ Lemma dim_span_active (base : base_t[R,n]) (P : {poly base}) :
   P `>` ([poly0]) -> (\dim << {eq P} >> <= n)%N.
 Proof.
 move => /proper0P [x x_in_P].
-have /limg_dim_eq <-: (<<{eq P}>> :&: lker befst)%VS = 0%VS.
+have /limg_dim_eq <-: (<<{eq P}>> :&: lker \fst)%VS = 0%VS.
 - apply/eqP; rewrite -subv0.
   apply/subvP => e; rewrite memv_cap memv_ker memv0 => /andP [e_in /eqP f_e_eq0].
   have e1_eq0 : e.1 = 0 by rewrite lfunE in f_e_eq0.
-  apply/be_eqP => /=; split; first done.
+  apply/lrel_eqP => /=; split; first done.
   move/(poly_leP subset_repr_active): x_in_P.
   rewrite polyEq_affine in_polyI => /andP [_ /in_affine/(_ _ e_in)].
   by rewrite in_hp e1_eq0 vdot0l => /eqP.
@@ -1300,7 +1300,7 @@ Lemma dim2P (P : 'poly[R]_n) :
 Proof.
 elim/polybW: P => base P P_compact dimP2.
 have P_prop0 : P `>` [poly0] by rewrite dimN0 dimP2.
-set U := (befst @: <<{eq P}>>)^OC%VS.
+set U := (\fst @: <<{eq P}>>)^OC%VS.
 have hullP_eq : forall x, x \in P -> hull P = [affine U & x].
 - move => x x_in_P.
   by rewrite -affine_orth -hullN0_eq //; apply/(poly_leP (subset_hull _)).
@@ -1326,9 +1326,9 @@ have dv_neq_dw: '[d,v] != '[d,w].
   pose e := [< d, opt_value d_bounded >].
   have: pval P `<=` [hp e].
   + rewrite RT.lexI -(rwP andP); split; first by apply/opt_value_lower_bound.
-    rewrite beoppE /= -d_v dv_eq_dw d_w opprK.
+    rewrite lrel_oppE /= -d_v dv_eq_dw d_w opprK.
     by apply/opt_value_lower_bound.
-  rewrite in_span_activeP // => /(memv_img befst).
+  rewrite in_span_activeP // => /(memv_img \fst).
   rewrite lfunE /= => d_in_eq.
   have: d \in (U :&: U^OC)%VS by rewrite memv_cap orthK d_in_eq (memv_pick U).
   by rewrite direct_orthvP memv0 => /eqP.

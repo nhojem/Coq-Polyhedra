@@ -176,33 +176,33 @@ End LexiBasis.
 
 Section RelGraph.
 
-Let n := PP.n.
-Let m := PP.m.
+Let n := RatP.n.
+Let m := RatP.m.
 Context (base : m.-tuple lrel[rat]_n).
-Context (g : PG.t).
+Context (g : RatG.t).
 
 
 Definition target_Po := perturbation base.
 Definition target_graph := lexi_mask_graph target_Po.
 
-Hypothesis g_struct : PA.struct_consistent n target_Po g.
-Hypothesis g_vtx : PA.vertex_consistent target_Po g.
+Hypothesis g_struct : RatA.struct_consistent n target_Po g.
+Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 
 Definition rel_foo :=
-  (forall x, x \in vertices (lexi_mask_graph target_Po) = PG.mem_vertex x g)
-  /\ (forall x y, edges (lexi_mask_graph target_Po) x y = PG.mem_edge x y g).
+  (forall x, x \in vertices (lexi_mask_graph target_Po) = RatG.mem_vertex x g)
+  /\ (forall x y, edges (lexi_mask_graph target_Po) x y = RatG.mem_edge x y g).
 
-Definition low_point k := if PG.label k g is Some l then l else 0.
+Definition low_point k := if RatG.label k g is Some l then l else 0.
 
 Section LowPointIng.
 
 Context (k : bitseq).
-Hypothesis k_mem : PG.mem_vertex k g.
+Hypothesis k_mem : RatG.mem_vertex k g.
 
 Lemma mem_low_size: size k == m.
 Proof.
-move/PG.vertex_allP: g_struct=> H.
-case/PG.vtx_memE: k_mem=> e /H/and4P [].
+move/RatG.vertex_allP: g_struct=> H.
+case/RatG.vtx_memE: k_mem=> e /H/and4P [].
 by rewrite size_pert.
 Qed.
 
@@ -210,30 +210,30 @@ Definition kt := Tuple mem_low_size.
 
 Lemma mem_low_card: ##|kt| == n.
 Proof.
-move/PG.vertex_allP: g_struct=> H.
-by case/PG.vtx_memE: k_mem=> e /H/and4P [].
+move/RatG.vertex_allP: g_struct=> H.
+by case/RatG.vtx_memE: k_mem=> e /H/and4P [].
 Qed.
 
 Definition km := CMask mem_low_card.
 
 Lemma low_pointP:
-  exists2 e, PG.find_vertex km g = Some e & e.1 = low_point km.
+  exists2 e, RatG.find_vertex km g = Some e & e.1 = low_point km.
 Proof.
-move: k_mem=> /PG.vtx_memE [].
-by rewrite /low_point /PG.label; case=> a b ->; exists (a,b).
+move: k_mem=> /RatG.vtx_memE [].
+by rewrite /low_point /RatG.label; case=> a b ->; exists (a,b).
 Qed.
 
 Lemma mem_low_sat:
   all_sat target_Po (low_point km).
 Proof.
-move/PG.vertex_allP: g_vtx low_pointP => H [e].
+move/RatG.vertex_allP: g_vtx low_pointP => H [e].
 by case/H/andP => _ ? <-.
 Qed.
 
 Lemma mem_low_mask:
   eq_mask target_Po km (low_point km).
 Proof.
-move/PG.vertex_allP: g_vtx low_pointP => H [e].
+move/RatG.vertex_allP: g_vtx low_pointP => H [e].
 by case/H/andP => ? _ <-.
 Qed.
 

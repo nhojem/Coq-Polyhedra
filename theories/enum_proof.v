@@ -42,8 +42,6 @@ Proof. apply/eqP/size_pert_. Qed.
 
 End Perturbation.
 
-
-
 Section LexiBasis.
 
 Context (R : realFieldType) (n m : nat).
@@ -119,7 +117,6 @@ Proof.
 move=> /allP /= eqx.
 apply/row_matrixP => i.
 rewrite row_mul !rowK -!map_mask.
-(* move: (card_fmask L); rewrite /card_bitseq => r.  *)
 rewrite !(nth_map 0) ?size_mask ?size_tuple ?card_fmask //=.
 by apply/eqP/eqx/mem_nth; rewrite ?size_mask ?size_tuple ?card_fmask.
 Qed.

@@ -15,10 +15,12 @@ Open Scope ring_scope.
 (* --------------------------------------------------------------------------------------------------- *)
 
 Module Type Prerequisite.
-Parameters (U L : Type).
-(* L is the type of linear equations, U is a vector space *)
-Parameters sat_ineq sat_eq: L -> U -> bool.
 
+(* L is the type of linear relations,
+ * U is the type of "points" (ie vectors or perturbed vectors) *)
+Parameters (U L : Type).
+
+Parameters sat_ineq sat_eq: L -> U -> bool.
 End Prerequisite.
 
 Module Algorithm (P : Prerequisite).
@@ -103,12 +105,9 @@ Definition sat_eq (c : L) (x : U) :=
 End BigQPrerequisite.
 
 Module BigQAlgorithm := Algorithm BigQPrerequisite.
-
-Definition bigQ_vtx_consistent :=
-  BigQAlgorithm.vertex_consistent.
-
-Definition bigQ_struct_consistent :=
-  BigQAlgorithm.struct_consistent.
+Module BQA := BigQAlgorithm.
+Module BQG := BigQAlgorithm.AlgoGraph.
+Module BQP := BigQPrerequisite.
 
 Section PolySat.
 
@@ -130,13 +129,9 @@ Definition sat_eq := @sat_eq [realFieldType of rat] n m.
 End RatPrerequisite.
 
 Module RatAlgorithm := Algorithm RatPrerequisite.
-
-Module PA := RatAlgorithm.
-Module BQA := BigQAlgorithm.
-Module PG := RatAlgorithm.AlgoGraph.
-Module BQG := BigQAlgorithm.AlgoGraph.
-Module PP := RatPrerequisite.
-Module BQP := BigQPrerequisite.
+Module RatA := RatAlgorithm.
+Module RatG := RatAlgorithm.AlgoGraph.
+Module RatP := RatPrerequisite.
 
 Section Refinement.
 
@@ -159,15 +154,15 @@ Definition r_rV (n : nat) (v : 'rV[rat]_n) (s : seq bigQ) :=
 Definition r_cV (n : nat) (v : 'cV[rat]_n) (s : seq bigQ) :=
   (size s == n) && (all (fun k => r (v k 0) (nth 0%bigQ s k)) (enum 'I_n)).
 
-Definition r_L (l : PP.L) (s : BQP.L) :=
+Definition r_L (l : RatP.L) (s : BQP.L) :=
   r_rV l.1 s.1 && r_rV l.2 s.2.
 
-Definition r_U (u : PP.U) (s : BQP.U) :=
-  (size s == (PP.m).+1) &&
-  all (fun k => r_cV (col k u) (nth [::] s k)) (enum 'I_((PP.m).+1)).
+Definition r_U (u : RatP.U) (s : BQP.U) :=
+  (size s == (RatP.m).+1) &&
+  all (fun k => r_cV (col k u) (nth [::] s k)) (enum 'I_((RatP.m).+1)).
 
-Definition r_Po (PPo : seq PP.L) (BQPo : seq BQP.L) :=
-  (size PPo == size BQPo) && all (fun x => r_L x.1 x.2) (zip PPo BQPo).
+Definition r_Po (RatPo : seq RatP.L) (BQPo : seq BQP.L) :=
+  (size RatPo == size BQPo) && all (fun x => r_L x.1 x.2) (zip RatPo BQPo).
 
 Section Proofs.
 
@@ -181,7 +176,6 @@ as bigQ_eq_rel.
 
 Add Parametric Morphism : r with signature eq ==> BigQ.eq ==> eq as r_morph.
 Proof. by move=> ????; apply/(sameP idP)/(iffP idP); apply/r_inj => //; symmetry. Qed.
-
 
 Lemma bigQ_eqP x y: reflect (BigQ.eq x y) (BigQ.eqb x y).
 Proof.
@@ -337,13 +331,13 @@ exists v'^T; rewrite ?r_cVtr ?trmxK //.
 by move=> k; rewrite mxE -v_k mxE.
 Qed.
 
-Lemma r_LP (e : PP.L) (s : BQP.L):
+Lemma r_LP (e : RatP.L) (s : BQP.L):
   reflect (r_rV e.1 s.1 /\ r_rV e.2 s.2) (r_L e s).
 Proof. exact/andP. Qed.
 
-Lemma r_UP (x : PP.U) (s : BQP.U):
+Lemma r_UP (x : RatP.U) (s : BQP.U):
   reflect
-  ((size s = (PP.m).+1) /\ forall k, r_cV (col k x) (nth [::] s k))
+  ((size s = (RatP.m).+1) /\ forall k, r_cV (col k x) (nth [::] s k))
   (r_U x s).
 Proof.
 apply/(iffP idP); rewrite /r_U.
@@ -377,7 +371,7 @@ elim: n x y a b.
   by rewrite /vdot; apply: eq_big => //= i _; rewrite !mxE xx' yy'.
 Qed.
 
-Lemma bigQ_productE (l : PP.L) (u : PP.U) (bl : BQP.L) (bu : BQP.U) :
+Lemma bigQ_productE (l : RatP.L) (u : RatP.U) (bl : BQP.L) (bu : BQP.U) :
   r_L l bl -> r_U u bu ->
   r_rV (l.1 *m u) [seq BQP.bigQ_dot bl.1 u0 | u0 <- bu].
 Proof.
@@ -411,24 +405,24 @@ elim: n u v p q.
     exact/(r_lt r_hq r_hp).
 Qed.
 
-Lemma sat_ineqE (l : PP.L) (u: PP.U) bl bu:
+Lemma sat_ineqE (l : RatP.L) (u: RatP.U) bl bu:
   r_L l bl -> r_U u bu ->
-  PP.sat_ineq l u = BQP.sat_ineq bl bu.
+  RatP.sat_ineq l u = BQP.sat_ineq bl bu.
 Proof.
 move=> rl ru; move: (bigQ_productE rl ru).
 case: l rl ru; case: bl => ???? /r_LP /= [rL1 rL2] rU /= r_prod.
-(* rewrite /PP.sat_ineq /BQP.sat_ineq /sat_ineq /=. *)
+(* rewrite /RatP.sat_ineq /BQP.sat_ineq /sat_ineq /=. *)
 exact: bigQ_lexE.
 Qed.
 
-Lemma sat_eqE (l : PP.L) (u: PP.U) bl bu :
+Lemma sat_eqE (l : RatP.L) (u: RatP.U) bl bu :
   r_L l bl -> r_U u bu ->
-  PP.sat_eq l u = BQP.sat_eq bl bu.
+  RatP.sat_eq l u = BQP.sat_eq bl bu.
 Proof.
 case: l; case: bl=> a b a0 b0 r_l r_u.
 move: (bigQ_productE r_l r_u)=> /= r_prod.
 case/r_LP: (r_l) => /= _ r_b.
-(* rewrite /PP.sat_eq /BQP.sat_eq /sat_eq /=. *)
+(* rewrite /RatP.sat_eq /BQP.sat_eq /sat_eq /=. *)
 apply/(sameP idP)/(iffP idP).
 - move=> ?; exact/eqP/(r_rV_eq r_prod r_b).
 - move/eqP=> ?; exact/(r_rV_eq r_prod r_b).
@@ -438,34 +432,34 @@ Lemma r_Po_nilL BQPo:
   reflect (BQPo = [::]) (r_Po [::] BQPo).
 Proof. apply/(iffP idP); [by case: BQPo | by move=> ->]. Qed.
 
-Lemma r_Po_nilR PPo:
-  reflect (PPo = [::]) (r_Po PPo [::]).
-Proof. apply/(iffP idP); [by case: PPo | by move=> ->]. Qed.
+Lemma r_Po_nilR RatPo:
+  reflect (RatPo = [::]) (r_Po RatPo [::]).
+Proof. apply/(iffP idP); [by case: RatPo | by move=> ->]. Qed.
 
-Lemma r_Po_cons PPo BQPo Pc BQc:
-  r_Po (Pc :: PPo) (BQc :: BQPo) ->
-  [/\ r_L Pc BQc, (size PPo = size BQPo) & (r_Po PPo BQPo)].
+Lemma r_Po_cons RatPo BQPo Pc BQc:
+  r_Po (Pc :: RatPo) (BQc :: BQPo) ->
+  [/\ r_L Pc BQc, (size RatPo = size BQPo) & (r_Po RatPo BQPo)].
 Proof. by rewrite /r_Po /= eqSS; case/and3P => /eqP -> -> ->; rewrite eq_refl. Qed.
 
-Lemma mask_eqE PPo BQPo uP uBQ v:
-  r_Po PPo BQPo -> r_U uP uBQ ->
-  PA.mask_eq PPo v uP = BQA.mask_eq BQPo v uBQ.
+Lemma mask_eqE RatPo BQPo uP uBQ v:
+  r_Po RatPo BQPo -> r_U uP uBQ ->
+  RatA.mask_eq RatPo v uP = BQA.mask_eq BQPo v uBQ.
 Proof.
 move=> + rU.
-rewrite /PA.mask_eq /BQA.mask_eq.
-elim: PPo BQPo v; first by (move=> ?? /r_Po_nilL ->; rewrite !mask0).
+rewrite /RatA.mask_eq /BQA.mask_eq.
+elim: RatPo BQPo v; first by (move=> ?? /r_Po_nilL ->; rewrite !mask0).
 move=> a l ih []; first by move=> ? /r_Po_nilR.
 move=> b l' [] //= [] v' /r_Po_cons [r_ab _ r_ll'] /=.
 + rewrite (sat_eqE r_ab rU); congr andb; exact/ih.
 + exact/ih.
 Qed.
 
-Lemma sat_PoE PPo BQPo uP uBQ:
-  r_Po PPo BQPo -> r_U uP uBQ ->
-  PA.sat_Po PPo uP = BQA.sat_Po BQPo uBQ.
+Lemma sat_PoE RatPo BQPo uP uBQ:
+  r_Po RatPo BQPo -> r_U uP uBQ ->
+  RatA.sat_Po RatPo uP = BQA.sat_Po BQPo uBQ.
 Proof.
-move=> + rU; rewrite /PA.sat_Po /BQA.sat_Po.
-elim: PPo BQPo; first by move=> ? /r_Po_nilL ->.
+move=> + rU; rewrite /RatA.sat_Po /BQA.sat_Po.
+elim: RatPo BQPo; first by move=> ? /r_Po_nilL ->.
 move=> a l ih []; first by move/r_Po_nilR.
 move=> b l' /r_Po_cons [r_ab _ r_ll'] /=.
 rewrite (sat_ineqE r_ab rU); congr andb.
@@ -475,95 +469,93 @@ Qed.
 Section GraphStructure.
 
 Variable n : nat.
-Variable G1 : PG.t.
+Variable G1 : RatG.t.
 Variable G2 : BQG.t.
-Context (PPo : seq PP.L) (BQPo : seq BQP.L).
+Context (RatPo : seq RatP.L) (BQPo : seq BQP.L).
 
 Definition eqv_graph :=
-  (PG.mem_vertex^~ G1 =1 BQG.mem_vertex^~ G2) /\
-  (forall v1 v2, PG.mem_edge v1 v2 G1 = BQG.mem_edge v1 v2 G2).
+  (RatG.mem_vertex^~ G1 =1 BQG.mem_vertex^~ G2) /\
+  (forall v1 v2, RatG.mem_edge v1 v2 G1 = BQG.mem_edge v1 v2 G2).
 
 Lemma perm_eqv_graph: eqv_graph ->
-  perm_eq (PG.vertex_list G1) (BQG.vertex_list G2).
+  perm_eq (RatG.vertex_list G1) (BQG.vertex_list G2).
 Proof.
-rewrite /PG.adj_list /BQG.adj_list.
-case=> ? _; apply: uniq_perm; rewrite ?PG.MF.uniq_keys ?BQG.MF.uniq_keys //.
-by move=> v; rewrite PG.vtx_mem_list BQG.vtx_mem_list.
+rewrite /RatG.adj_list /BQG.adj_list.
+case=> ? _; apply: uniq_perm; rewrite ?RatG.MF.uniq_keys ?BQG.MF.uniq_keys //.
+by move=> v; rewrite RatG.vtx_mem_list BQG.vtx_mem_list.
 Qed.
 
-Lemma eqv_struct_consistent : eqv_graph -> r_Po PPo BQPo ->
-  PA.struct_consistent n PPo G1 = BQA.struct_consistent n BQPo G2.
+Lemma eqv_struct_consistent : eqv_graph -> r_Po RatPo BQPo ->
+  RatA.struct_consistent n RatPo G1 = BQA.struct_consistent n BQPo G2.
 Proof.
-move=> [eqvtx eqedg] rPo; rewrite /PA.struct_consistent /BQA.struct_consistent.
-rewrite (PG.vertex_all_eq _ (PG.adj_listP G1)).
+move=> [eqvtx eqedg] rPo; rewrite /RatA.struct_consistent /BQA.struct_consistent.
+rewrite (RatG.vertex_all_eq _ (RatG.adj_listP G1)).
 rewrite (BQG.vertex_all_eq _ (BQG.adj_listP G2)) -!all_map.
-rewrite (@eq_all _ (PA.neighbour_condition n PPo G1) (BQA.neighbour_condition n BQPo G2)).
+rewrite (@eq_all _ (RatA.neighbour_condition n RatPo G1) (BQA.neighbour_condition n BQPo G2)).
   exact/perm_all/perm_eqv_graph.
-move=> I; rewrite /PA.neighbour_condition /BQA.neighbour_condition.
+move=> I; rewrite /RatA.neighbour_condition /BQA.neighbour_condition.
 congr andb; first by case/andP: rPo=> /eqP ->.
 congr andb.
-case E: (PG.mem_vertex I G1).
-- rewrite (@PG.neighbour_all_eq _ _ (PG.neighbour_list G1 I)) //.
+case E: (RatG.mem_vertex I G1).
+- rewrite (@RatG.neighbour_all_eq _ _ (RatG.neighbour_list G1 I)) //.
   rewrite eqvtx in E.
   rewrite (@BQG.neighbour_all_eq _ _ (BQG.neighbour_list G2 I)) //.
-  have perm_nei: perm_eq (PG.neighbour_list G1 I) (BQG.neighbour_list G2 I).
-  + apply/uniq_perm; rewrite ?PG.uniq_neighbour_list ?BQG.uniq_neighbour_list //.
-    by move=> x; rewrite -PG.edge_mem_list -BQG.edge_mem_list eqedg.
+  have perm_nei: perm_eq (RatG.neighbour_list G1 I) (BQG.neighbour_list G2 I).
+  + apply/uniq_perm; rewrite ?RatG.uniq_neighbour_list ?BQG.uniq_neighbour_list //.
+    by move=> x; rewrite -RatG.edge_mem_list -BQG.edge_mem_list eqedg.
   congr (_ && _); first exact/perm_all.
-  + rewrite (PG.nb_neighbours_list) ?(BQG.nb_neighbours_list) ?eqvtx //.
+  + rewrite (RatG.nb_neighbours_list) ?(BQG.nb_neighbours_list) ?eqvtx //.
     by rewrite (perm_size perm_nei).
-  + rewrite PG.neighbour_allF ?BQG.neighbour_allF -?eqvtx ?E //=.
-    by rewrite PG.nb_neighboursF ?BQG.nb_neighboursF -?eqvtx ?E.
+  + rewrite RatG.neighbour_allF ?BQG.neighbour_allF -?eqvtx ?E //=.
+    by rewrite RatG.nb_neighboursF ?BQG.nb_neighboursF -?eqvtx ?E.
 Qed.
 
 End GraphStructure.
 
-
 Section GraphData.
-
-Variable G1 : PG.t.
+Variable G1 : RatG.t.
 Variable G2 : BQG.t.
-Context (PPo : seq PP.L) (BQPo : seq BQP.L).
+Context (RatPo : seq RatP.L) (BQPo : seq BQP.L).
 
-Definition eqd_vtx v := match (PG.label v G1), (BQG.label v G2) with
+Definition eqd_vtx v := match (RatG.label v G1), (BQG.label v G2) with
   |Some lP, Some lBQ => r_U lP lBQ
   |_, _ => false
 end.
 
-Definition eqv_data := forall v, PG.mem_vertex v G1 -> BQG.mem_vertex v G2 ->
+Definition eqv_data := forall v, RatG.mem_vertex v G1 -> BQG.mem_vertex v G2 ->
   eqd_vtx v.
 
 Lemma eqv_data_find v xP xBQ:
   eqv_data ->
-  PG.find_vertex v G1 = Some xP -> BQG.find_vertex v G2 = Some xBQ ->
+  RatG.find_vertex v G1 = Some xP -> BQG.find_vertex v G2 = Some xBQ ->
   r_U xP.1 xBQ.1.
 Proof.
-case: xP xBQ => lP nP [lBQ nBQ] /= eqd PGfind BQGfind.
-move: (eqd v (PG.find_mem PGfind) (BQG.find_mem BQGfind)).
-rewrite /eqd_vtx /PG.label /BQG.label.
-rewrite /PG.find_vertex /BQG.find_vertex in PGfind BQGfind.
-by rewrite /PG.find_vertex /BQG.find_vertex PGfind BQGfind /=.
+case: xP xBQ => lP nP [lBQ nBQ] /= eqd RatGfind BQGfind.
+move: (eqd v (RatG.find_mem RatGfind) (BQG.find_mem BQGfind)).
+rewrite /eqd_vtx /RatG.label /BQG.label.
+rewrite /RatG.find_vertex /BQG.find_vertex in RatGfind BQGfind.
+by rewrite /RatG.find_vertex /BQG.find_vertex RatGfind BQGfind /=.
 Qed.
 
 Lemma eqv_vertex_consistent: (eqv_graph G1 G2) -> eqv_data ->
-  r_Po PPo BQPo ->
-  PA.vertex_consistent PPo G1 = BQA.vertex_consistent BQPo G2.
+  r_Po RatPo BQPo ->
+  RatA.vertex_consistent RatPo G1 = BQA.vertex_consistent BQPo G2.
 Proof.
 case => eqvtx eqedge eqdata rPo.
-rewrite /PA.vertex_consistent /BQA.vertex_consistent.
+rewrite /RatA.vertex_consistent /BQA.vertex_consistent.
 apply/(sameP idP)/(iffP idP).
-- move/BQG.vertex_allP => BQPall; apply/PG.vertex_allP=> v [lP nP] PGfind /=.
-  move: (PG.find_mem PGfind); rewrite eqvtx.
+- move/BQG.vertex_allP => BQPall; apply/RatG.vertex_allP=> v [lP nP] RatGfind /=.
+  move: (RatG.find_mem RatGfind); rewrite eqvtx.
   case/BQG.vtx_memE => [[lBQ nBQ]] BQGfind.
-  move: (eqv_data_find eqdata PGfind BQGfind) => /= rl.
+  move: (eqv_data_find eqdata RatGfind BQGfind) => /= rl.
   rewrite (mask_eqE v rPo rl) (sat_PoE rPo rl).
   exact: (BQPall _ _ BQGfind).
-- move/PG.vertex_allP => PGall; apply/BQG.vertex_allP=> v [lBQ nBQ] BQGfind /=.
+- move/RatG.vertex_allP => RatGall; apply/BQG.vertex_allP=> v [lBQ nBQ] BQGfind /=.
   move: (BQG.find_mem BQGfind); rewrite -eqvtx.
-  case/PG.vtx_memE => [[lP nP]] PGfind.
-  move: (eqv_data_find eqdata PGfind BQGfind) => /= rl.
+  case/RatG.vtx_memE => [[lP nP]] RatGfind.
+  move: (eqv_data_find eqdata RatGfind BQGfind) => /= rl.
   rewrite -(mask_eqE v rPo rl) -(sat_PoE rPo rl).
-  exact: (PGall _ _ PGfind).
+  exact: (RatGall _ _ RatGfind).
 Qed.
 
 End GraphData.

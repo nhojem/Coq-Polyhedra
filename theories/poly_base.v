@@ -11,8 +11,8 @@ Require Import Recdef.
 From mathcomp Require Import all_ssreflect ssralg ssrnum zmodp matrix mxalgebra vector finmap.
 
 From lattice Require Import extra_misc xbigop finlattice.
-Require Import extra_misc inner_product extra_matrix (*xorder*) vector_order row_submx.
-Require Import hpolyhedron polyhedron barycenter.
+Require Import extra_misc inner_product.
+Require Import lrel polyhedron barycenter.
 
 Import Order.Theory.
 

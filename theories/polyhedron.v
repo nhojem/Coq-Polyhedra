@@ -14,8 +14,8 @@ From lattice Require Import finlattice.
 Import Order.Theory.
 (*Import RelOrder.Theory.*)
 
-Require Import extra_misc extra_matrix inner_product row_submx vector_order barycenter hpolyhedron.
-
+Require Import extra_misc extra_matrix inner_product row_submx vector_order.
+Require Import lrel barycenter hpolyhedron.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -43,6 +43,10 @@ End RT.
 Arguments RT.le_anti {T}.
 Arguments RT.ge_anti {T}.
 Arguments RT.eq_le {T}.
+
+
+Declare Scope poly_scope.
+Delimit Scope poly_scope with PH.
 
 Local Open Scope ring_scope.
 Local Open Scope quotient_scope.

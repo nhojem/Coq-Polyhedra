@@ -292,3 +292,26 @@ Qed.
 Definition befst := linfun (Linear fst_lmorph).
 
 End BaseVect.
+
+(* -------------------------------------------------------------------- *)
+Section Combine.
+Context {R : realFieldType} {n : nat} (base : base_t[R,n]).
+
+Implicit Types (w : {fsfun lrel[R]_n ~> R}).
+
+Lemma combineb1E w : (finsupp w `<=` base)%fset ->
+  (combine w).1 = \sum_(v : base) w (val v) *: (val v).1.
+Proof.
+move=> le_wb; rewrite (combinewE le_wb).
+by apply (big_morph (fst \o val) beadd_p1E).
+Qed.
+
+Lemma combineb2E w : (finsupp w `<=` base)%fset ->
+  (combine w).2 = \sum_(v : base) w (val v) * (val v).2.
+Proof.
+move=> le_wb; rewrite (combinewE le_wb).
+by apply (big_morph (snd \o val) beadd_p2E). Qed.
+
+Definition combinebE w (h : (finsupp w `<=` base)%fset) :=
+  (@combineb1E w h, @combineb2E w h).
+End Combine.

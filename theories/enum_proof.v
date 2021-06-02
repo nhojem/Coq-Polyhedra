@@ -1,6 +1,6 @@
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 Require Import extra_misc inner_product extra_matrix vector_order.
-Require Import hpolyhedron.
+Require Import lrel.
 Require Import mask enum_algo graph high_graph.
 
 Set Implicit Arguments.

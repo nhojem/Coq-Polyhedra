@@ -56,7 +56,7 @@ Notation "R '.-lrel['  T ]_ n" := (@lrel_type R T n).
 Notation "'lrel[' R ]_ n" := (R.-lrel[R^o]_n).
 Notation "'lrel_' n" := (lrel[_]_n).
 Notation "R '.-base_t[' T , n ]" := {fset R.-lrel[T]_n}.
-Notation "'base_t[' R , n ]" := (R.-base_t[R,n]).
+Notation "'base_t[' R , n ]" := (R.-base_t[R^o,n]).
 Notation "'base_t'" := (base_t[_,_]).
 Notation "[< A , b >]" := (LRel (A, b)).
 
@@ -321,14 +321,14 @@ Lemma combineb1E w : (finsupp w `<=` base)%fset ->
   (combine w).1 = \sum_(v : base) w (val v) *: (val v).1.
 Proof.
 move=> le_wb; rewrite (combinewE le_wb).
-by apply (big_morph (fst \o val) lrel_add_p1E).
+by apply: (big_morph (fst \o val) lrel_add_p1E).
 Qed.
 
 Lemma combineb2E w : (finsupp w `<=` base)%fset ->
   (combine w).2 = \sum_(v : base) w (val v) * (val v).2.
 Proof.
 move=> le_wb; rewrite (combinewE le_wb).
-by apply (big_morph (snd \o val) lrel_add_p2E). Qed.
+by apply: (big_morph (snd \o val) lrel_add_p2E). Qed.
 
 Definition combinebE w (h : (finsupp w `<=` base)%fset) :=
   (@combineb1E w h, @combineb2E w h).

@@ -602,7 +602,8 @@ case: (ltrP '[e.1,x] '[e.1,y]) => [/ltW ?|?].
   + by rewrite ler_add ?ler_wpmul2l ?subr_ge0.
 Qed.
 
-Lemma poly_subset_hsP {P : 'poly[R]_n} {b : lrel} :
+(*TODO Notation issue, lrel was enough instead of lrel[R]_n*)
+Lemma poly_subset_hsP {P : 'poly[R]_n} {b : lrel[R]_n} :
   reflect (forall x, x \in P -> '[fst b, x] >= snd b) (P `<=` [hs b]).
 Proof.
 apply: (iffP poly_leP) => [sub x x_in_P | sub x x_in_P ];
@@ -1086,9 +1087,10 @@ have h: [poly0] `<` Q `<=` P by apply/andP; split.
 by move/(compactP P_prop0)/(_ c)/bounded_mono1/(_ h): P_compact.
 Qed.
 
-Definition slice (b : lrel) P := [hp b] `&` P.
+(*TODO Notation issue, lrel was enough instead of lrel[R]_n*)
+Definition slice (b : lrel[R]_n) P := [hp b] `&` P.
 
-Lemma slice0 (b : lrel) : slice b ([poly0]) = [poly0].
+Lemma slice0 (b : lrel[R]_n) : slice b ([poly0]) = [poly0].
 Proof.
 by rewrite /slice RT.meetx0.
 Qed.
@@ -1096,7 +1098,7 @@ Qed.
 Lemma sliceS (e : lrel[R]_n) : {homo slice e : P Q / P `<=` Q}.
 Proof. by move=> ???; apply: RT.leI2. Qed.
 
-Lemma in_slice (e : lrel) (P : 'poly_n) c :
+Lemma in_slice (e : lrel[R]_n) (P : 'poly_n) c :
   c \in slice e P = (c \in [hp e]) && (c \in P).
 Proof. by apply: in_polyI. Qed.
 
@@ -1148,7 +1150,8 @@ apply/in_poly_of_baseP/gev0P => [H i | H e /imfsetP [i /= _ ->]].
 - rewrite in_hs vdotl_delta_mx; exact: H.
 Qed.
 
-Lemma poly_of_base_subset_hs {base : base_t} {e : lrel} :
+(*TODO Notation issue, lrel was enough instead of lrel[R]_n*)
+Lemma poly_of_base_subset_hs {base : base_t} {e : lrel[R]_n} :
   e \in base -> 'P(base) `<=` [hs e].
 Proof.
 move => e_in_base.
@@ -1255,7 +1258,7 @@ move/forallP=> /= hP; apply/forallP=> -[/= q].
 by move/leQP => qP; apply: (hP [`qP]%fset).
 Qed.
 
-Lemma slice_polyEq {e : lrel} {base I : base_t[R,n]} :
+Lemma slice_polyEq {e : lrel[R]_n} {base I : base_t[R,n]} :
   slice e 'P^=(base; I) = 'P^=(e +|` base; e +|` I).
 Proof.
 apply/poly_eqP=> c; rewrite in_slice; apply/andP/idP.
@@ -1800,7 +1803,9 @@ Proof.
 by move/dimvS: (subvf U); rewrite dimvf /Vector.dim /= muln1.
 Qed.
 
-Definition mk_affine_fun0 (x: 'cV[R]_n) := fun v => [<v, '[v,x]>].
+(*FIX QC: I had to specify the type of this Definition*)
+Definition mk_affine_fun0 (x: 'cV[R]_n) : 'cV_n -> lrel[R]_n :=
+  fun v => [<v, '[v,x]>].
 
 Lemma mk_affine_fun0_linear x : lmorphism (mk_affine_fun0 x).
 Proof.
@@ -2111,9 +2116,9 @@ Variable (R : realFieldType) (n : nat) (base : base_t[R,n]).
 
 Implicit Type w : {fsfun lrel[R]_n -> R for fun => 0%R}.
 
-Lemma farkas (e : lrel) :
+Lemma farkas (e : lrel[R]_n) :
   ('P(base) `>` [poly0]) -> ('P(base) `<=` [hs e]) ->
-  exists2 w : {conic lrel ~> R},
+  exists2 w : {conic lrel[R]_n ~> R},
          (finsupp w `<=` base)%fset
        & (combine w).1 = e.1 /\ (combine w).2 >= e.2.
 Proof.
@@ -2121,7 +2126,7 @@ rewrite /poly_of_base big_polyI_mono RT.lt0x -RT.lex0 2!poly_subset_mono.
 exact: H.farkas.
 Qed.
 
-Lemma dual_sol_lower_bound (w : {conic lrel ~> R}) :
+Lemma dual_sol_lower_bound (w : {conic lrel[R]_n ~> R}) :
   (finsupp w `<=` base)%fset -> 'P(base) `<=` [hs (combine w)].
 Proof.
 move=> le_wB; apply/poly_leP => x; rewrite inE in_poly_of_base /=.
@@ -2132,7 +2137,7 @@ apply: ler_sum => i _; rewrite vdotZl; apply: ler_wpmul2l.
 Qed.
 
 Lemma dual_opt_sol (c : 'cV[R]_n) (H : bounded 'P(base) c) :
-  exists2 w : {conic lrel ~> R},
+  exists2 w : {conic lrel[R]_n ~> R},
     (finsupp w `<=` base)%fset & combine w = [<c, opt_value H>].
 Proof.
 move/(farkas (boundedN0 H)): (opt_value_lower_bound H).
@@ -2143,7 +2148,7 @@ move/poly_leP/(_ _ x_in_P): (dual_sol_lower_bound w_weight).
 by rewrite inE w_comb1.
 Qed.
 
-Lemma dual_sol_bounded (w : {conic lrel ~>R}) :
+Lemma dual_sol_bounded (w : {conic lrel[R]_n ~>R}) :
      ('P(base) `>` [poly0])
   -> (finsupp w `<=` base)%fset
   -> bounded 'P(base) (combine w).1.

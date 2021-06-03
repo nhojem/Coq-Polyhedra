@@ -366,10 +366,11 @@ rewrite !inE big_andE; apply/forall_inP/forallP => /= h.
   by rewrite tr_col trmxK -row_mul row_cV.
 Qed.
 
-Lemma farkas (e : lrel) :
+(*TODO : notation issue, lrel was enough instead of lrel[R]_n*)
+Lemma farkas (e : lrel[R]_n) :
      ~~ (poly_subset P poly0)
   -> (poly_subset P (mk_hs e))
-  -> exists2 w : {conic lrel ~> R},
+  -> exists2 w : {conic lrel[R]_n ~> R},
          (finsupp w `<=` base)%fset
        & (combine w).1 = e.1 /\ (combine w).2 >= e.2.
 Proof.

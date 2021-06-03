@@ -22,8 +22,7 @@ Definition fsfun_dupd (f : fsfun d) (k : K) (v : V) : fsfun d :=
 End FsFun.
 
 Notation "f .[ k <- v ]" := (fsfun_upd f k v) : fun_scope.
-
-Notation "f .[ k <-? v ]" := (fsfun_upd f k v)
+Notation "f .[ k <-? v ]" := (fsfun_dupd f k v)
   (at level 2, format "f .[ k  <-?  v ]") : fun_scope.
 
 (* -------------------------------------------------------------------- *)
@@ -88,13 +87,13 @@ Definition predecessors (g : graph T) (v : T) : {fset T} :=
 
 (* Introduce notation *)
 (* create_graph -> mk_graph *)
-Definition create_graph (V : {fset T}) (E : rel T) : graph T :=
+Definition mk_graph (V : {fset T}) (E : rel T) : graph T :=
   Graph [fsfun v in V => Some [fset w | w in V & E v w] | None].
 
 Section Lemmas.
 Context (V : {fset T}) (E : rel T).
 
-Lemma vtx_create_graph : vertices (create_graph V E) = V.
+Lemma vtx_mk_graph : vertices (mk_graph V E) = V.
 Proof.
 apply/eqP; rewrite eqEfsubset; apply/andP; split.
 - exact: finsupp_sub.
@@ -104,9 +103,6 @@ Qed.
 End Lemmas.
 
 End GraphBasics.
-
-
-
 Section Connected.
 Context (T : choiceType) (G : graph T).
 

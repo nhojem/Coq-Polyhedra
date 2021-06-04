@@ -152,8 +152,15 @@ Definition connected := forall x y : T, x \in vertices G -> y \in vertices G ->
 Lemma has_npath0 (x : T) : has_npath 0 x x.
 Proof. by exists (nil_path x); split; split. Qed.
 
-Lemma has_npathS (n : nat) (x y : T):
-  has_npath (S n) x y <-> exists2 z, z \in successors G x & has_npath n z y.
+Lemma has_npath0P (x y : T) : has_npath 0 x y <-> x = y.
+Proof.
+split=> [|->]; last exact/has_npath0.
+case=> -[p _] /= [[]] /= <- <- /size0nil.
+by case: p => src dst p /= _ <- ->.
+Qed.
+
+Lemma has_npathSP (n : nat) (x y : T):
+  has_npath (S n) x y <-> exists2 z, y \in successors G z & has_npath n x z.
 Proof.
 Admitted.
 
@@ -190,6 +197,27 @@ Definition gisof f := gbij f /\ gmorph f.
 Definition giso := exists f, gisof f.
 
 End GIsomorphism.
+
+Section DFS.
+Context {T : choiceType} (G : graph T) (P : T -> Prop).
+
+Lemma ind (x0 : T) :
+     P x0
+  -> (forall (S : T -> Prop) x,
+           (forall x, S x -> P x)
+        -> (forall x, S x -> x \in vertices G)
+        -> S x -> forall y, y \in successors G x -> P y)
+  -> forall y, has_path G x0 y -> P y.
+Proof.
+move=> Px0 PS y /has_pathP[n]; elim: n y => [|n ih] y.
+- by move/has_npath0P <-.
+case/has_npathSP=> x x0_p_x /[dup] px /ih Px.
+apply: (PS (fun y => has_npath G n x0 y) x) => //.
+admit.
+- 
+
+
+
 
 Section IsoProofs.
 

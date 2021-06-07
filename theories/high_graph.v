@@ -92,6 +92,25 @@ Definition mk_graph (V : {fset T}) (E : rel T) : graph T :=
 
 Section Lemmas.
 
+Lemma vtx0 : vertices graph0 = fset0.
+Proof. exact: finsupp0. Qed.
+
+Lemma vtx_prop0 (G : graph T): vertices G != fset0 <-> G != graph0.
+Proof.
+split; apply/contra_neq.
+- by move=> ->; rewrite vtx0.
+- case: G=> f; rewrite /vertices /= => h.
+  congr Graph; apply/fsfunP=> x /=; rewrite fsfun0E.
+  by apply: fsfun_dflt; rewrite h in_fset0.
+Qed.
+
+Lemma graph0Pn (G : graph T) : reflect (exists x : T, x \in vertices G) (G != graph0).
+Proof.
+apply/(iffP idP).
+- by move/vtx_prop0/fset0Pn.
+- by move=> ?; apply/vtx_prop0/fset0Pn.
+Qed.  
+
 Lemma in_succE (G : graph T) (x y : T):
   y \in successors G x = edges G x y.
 Proof. by []. Qed.
@@ -226,6 +245,9 @@ Section TransPath.
 Context {p p' : epath}.
 Hypothesis junction : (dst p) = (src p').
 
+(*TODO : créer un lemme d'existence d'un chemin sans cycle : gpath => epath*)
+(*TODO : partir d'un gpath qui convient*)
+
 Program Definition trans_path := @EPath (@GPath (src p) (dst p') (shorten (src p) ((walk p) ++ (walk p'))) _ _ _) _.
 Next Obligation. by case: p=> -[]. Defined.
 Next Obligation.
@@ -268,11 +290,33 @@ End DFS.
 End Connected.
 
 Section Regular.
-Context (T : choiceType) (G : graph T) (n : nat).
+Context {T : choiceType} (G : graph T) (n : nat).
 
 Definition regular := forall v : T, v \in vertices G -> #|` successors G v| = n.
 
 End Regular.
+
+Section Undirected.
+Context {T : choiceType} (G : graph T).
+Let V := vertices G.
+Definition undirected := {in V&, commutative (edges G)}.
+
+Section Lemmas.
+Hypothesis uG : undirected.
+Lemma undi_succE : {in V&, forall x y, (x \in successors G y) = (y \in successors G x)}.
+Proof. move=> ????; rewrite !in_succE; exact: uG. Qed.
+
+Lemma undi_pathP : {in V&, forall x y, has_path G x y -> has_path G y x}.
+Proof.
+move=> x y xV yV; elim/ind; first exact: has_pathxx.
+move=> S x0 S_path S_vtx Sx0 y0 y0_succ; move: (S_vtx _ Sx0)=> x0_vtx.
+move/fsubsetP/(_ _ y0_succ) : (sub_succ x0_vtx)=> y0_vtx.
+rewrite undi_succE // in_succE in y0_succ.
+move: (has_path_edge y0_vtx y0_succ) (S_path _ Sx0); exact: has_path_trans.
+Qed.
+
+End Lemmas.
+End Undirected.
 
 Section GIsomorphism.
 
@@ -317,8 +361,9 @@ Hypothesis f_morph : {in V1&, forall x y, E1 x y -> E2 (f x) (f y)}.
 Hypothesis G2_connected : connected G2.
 Hypothesis G1_regular : regular G1 n.
 Hypothesis G2_regular : regular G2 n.
-Hypothesis G1C : commutative (edges G1).
-Hypothesis G2C : commutative (edges G2).
+Hypothesis uG1 : undirected G1.
+Hypothesis uG2 : undirected G2.
+Hypothesis G1prop0 : G1 != (graph0 T1).
 
 Lemma foo_succE:
   {in V1, forall x, f @` (successors G1 x) = (successors G2 (f x))}.
@@ -332,21 +377,34 @@ move=> x xV1; apply/eqP; rewrite eqEfcard; apply/andP; split.
   move/fsubsetP: (sub_succ xV1) => succ1 p q /succ1 pV1 /succ1 qV1; exact: f_inj.
 Qed.
 
-Lemma foo_haspath:
-  {in V1&, forall x y, has_path G1 x y <-> has_path G2 (f x) (f y)}.
+Lemma foo_has_path : {in V1, forall x, forall y, has_path G2 (f x) y -> y \in f @` V1}.
 Proof.
-move=> x y xV1 yV1; split.
-- elim/ind.
-	+ apply: has_pathxx; move/fsubsetP: f_leq; apply; exact: in_imfset.
-	+ move=> S x0 S_path S_vtx S_x0 y0; rewrite in_succE=> x0G1y0.
-		admit.
-admit.
-Admitted.
+move=> x xV1 y; elim/ind; first exact: in_imfset.
+move=> S x0 S_im S_vtx Sx0 y0; case/imfsetP: (S_im _ Sx0) => /= xO' x0'V1 ->.
+rewrite -foo_succE //; move: y0; exact/fsubsetP/subset_imfset/fsubsetP/sub_succ.
+Qed.
 
+Lemma foobar : V2 `<=` f @`V1.
+Proof.
+apply/fsubsetP=> x xV2; case/graph0Pn : G1prop0=> y yV1.
+by apply: (foo_has_path yV1).
+Qed.
+
+Lemma barfoo : {in V1&, forall x y, E2 (f x) (f y) -> E1 x y}.
+Proof.
+move=> x y xV1 yV1; rewrite -[E2 _ _]in_succE -foo_succE // -[E1 _ _]in_succE.
+case/imfsetP => y' /= y'_succ /f_inj -> //.
+by exact: (fsubsetP (sub_succ xV1)).
+Qed.
 
 Lemma bar : gisof G1 G2 f.
 Proof.
-Admitted.
+split; try split=> //; first by (apply/eqP; rewrite eqEfsubset f_leq foobar).
+move=> x y xV1 yV1; apply/idP/idP; first exact: f_morph.
+exact: barfoo.
+Qed.
+
+
 End Foo.
 
 End IsoProofs.

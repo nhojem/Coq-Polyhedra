@@ -125,38 +125,53 @@ Context (T : choiceType) (G : graph T).
 Record gpath := GPath {
   src : T;
   dst : T;
-  s : seq T;
-  _ : path (edges G) src s;
-  _ : last src s = dst
+  walk : seq T;
+  _ : src \in vertices G;
+  _ : path (edges G) src walk;
+  _ : last src walk = dst
 }.
 
 Record epath := EPath {
   p :> gpath;
-  _ : uniq (src p :: s p)
+  _ : uniq (src p :: walk p)
 }.
 
-Program Definition nil_path (x : T) : epath := @EPath (@GPath x x [::] _ _) _.
-
 Definition is_path (p : epath) (x y : T) := src p = x /\ dst p = y.
-
 Definition has_path (x y : T) := exists p : epath, is_path p x y.
-
+Definition size_path (p : epath) := size (walk p).
 Definition is_npath (n : nat) (p : epath) (x y : T) :=
-  is_path p x y /\ size (s p) = n.
-
+  is_path p x y /\ size_path p = n.
 Definition has_npath (n : nat) (x y : T) := exists p : epath, is_npath n p x y.
+Definition connected := forall x y : T, has_path x y.
 
-Definition connected := forall x y : T, x \in vertices G -> y \in vertices G ->
-  has_path x y.
+Lemma mem_src (p : epath) : src p \in vertices G. Proof. by case: p => -[]. Qed.
+Lemma path_walk (p : epath) : path (edges G) (src p) (walk p). Proof. by case: p => -[]. Qed.
+Lemma last_dst (p : epath) : last (src p) (walk p) = (dst p). Proof. by case: p => -[]. Qed.
+Lemma uniq_walk (p : epath) : uniq (src p :: walk p). Proof. by case: p. Qed. 
 
-Lemma has_npath0 (x : T) : has_npath 0 x x.
-Proof. by exists (nil_path x); split; split. Qed.
+Section NilPath.
+Context {x : T}.
+Hypothesis xG : x \in vertices G.
+Program Definition nil_path := @EPath (@GPath x x [::] _ _ _) _.
+End NilPath.
 
-Lemma has_npath0P (x y : T) : has_npath 0 x y <-> x = y.
+Lemma size_path0 (p : epath) : size_path p = 0 <-> src p = dst p.
 Proof.
-split=> [|->]; last exact/has_npath0.
-case=> -[p _] /= [[]] /= <- <- /size0nil.
-by case: p => src dst p /= _ <- ->.
+split.
+- by move/size0nil; case: p=> -[/= ??? _ _ + _]; move/[swap]; move=> -> /=.
+- move=> h; apply/eqP; rewrite size_eq0; apply/eqP; move: h.
+  case: p=> -[/= ?? s _ _ <- /andP [+ _]].
+  by move/[swap] => ->; case: s=> //= ??; rewrite mem_last.
+Qed.
+
+Lemma has_npath0 x : x \in vertices G -> has_npath 0 x x.
+Proof. by move=> xG; exists (nil_path xG). Qed.
+
+Lemma has_npath0P (x y : T) : has_npath 0 x y <-> x = y /\ y \in vertices G.
+Proof.
+split=> [|[->]]; last exact/has_npath0.
+case=> -[p /= ?] [[<- <-]] /size_path0 <-; split=> //.
+exact: mem_src.
 Qed.
 
 Lemma has_npathSP (n : nat) (x y : T):
@@ -167,14 +182,89 @@ Admitted.
 Lemma has_pathP (x y : T): has_path x y <-> exists n, has_npath n x y.
 Proof.
 split.
-- by case=> p ?; exists (size (s p)); exists p; split.
+- by case=> p ?; exists (size (walk p)); exists p; split.
 - by case=> ? [p []]; exists p.
 Qed.
 
-(* Inductive reachable : nat -> T -> T -> Prop :=
-  |R0 x : reachable 0 x x
-  |RS (x y z : T) (n : nat) of edges G x z & reachable n z y : reachable (S n) x y.   *)
+Lemma has_pathxx x : x \in vertices G -> has_path x x.
+Proof. move=> xG; apply/has_pathP; exists 0; exact: (has_npath0 xG). Qed.
 
+Lemma epath_vtx (p : epath) : dst p \in vertices G.
+Proof.
+case: p=> -[x y s /= +++ _]; elim: s x y => /= [|a l IH].
+- by move=> x y ? _ <-.
+- move=> x y xG /andP [edge_a]; apply/IH.
+  move/fsubsetP:(sub_succ xG); apply.
+  by rewrite in_succE.
+Qed.
+
+Lemma has_path_vtx (x y : T): has_path x y -> y \in vertices G.
+Proof. case=> p [_ <-]; exact: epath_vtx. Qed.
+
+Lemma has_npath_vtx n x y: has_npath n x y -> y \in vertices G.
+Proof. case=> p [[_ <-]] _; exact: epath_vtx. Qed.
+
+Section EdgePath.
+Context {x y : T}.
+Hypothesis xG : x \in vertices G.
+Hypothesis xGy : edges G x y.
+Hypothesis xny : x != y.
+
+Program Definition edge_path := @EPath (@GPath x y [:: y] _ _ _) _.
+Next Obligation. by rewrite xGy. Defined.
+Next Obligation. by rewrite inE xny. Defined.
+End EdgePath.
+
+Lemma has_path_edge x y : x \in vertices G -> edges G x y -> has_path x y.
+Proof.
+move=> xG xGy; case/boolP: (x == y).
+- move/eqP => <-; exact: has_pathxx.
+- by move=> xny; exists (edge_path xG xGy xny).
+Qed.
+
+Section TransPath.
+Context {p p' : epath}.
+Hypothesis junction : (dst p) = (src p').
+
+Program Definition trans_path := @EPath (@GPath (src p) (dst p') (shorten (src p) ((walk p) ++ (walk p'))) _ _ _) _.
+Next Obligation. by case: p=> -[]. Defined.
+Next Obligation.
+have: path (edges G) (src p) (walk p ++ walk p') by rewrite cat_path last_dst junction !path_walk.
+by case/shortenP.
+Defined.
+Next Obligation.
+have: last (src p) (walk p ++ walk p') = dst p' by rewrite last_cat last_dst junction last_dst.
+have: path (edges G) (src p) (walk p ++ walk p') by rewrite cat_path last_dst junction !path_walk.
+by case/shortenP.
+Defined.
+Next Obligation.
+have: path (edges G) (src p) (walk p ++ walk p') by rewrite cat_path last_dst junction !path_walk.
+by case/shortenP.
+Defined.
+End TransPath.
+
+Lemma has_path_trans x y z : has_path x y -> has_path y z -> has_path x z.
+Proof. by case => [p [? +]] [p' [+ ?]]; move=> <- /esym junc_y; exists (trans_path junc_y); split. Qed. 
+
+Section DFS.
+Context (P : T -> Prop).
+
+Lemma ind (x0 : T) :
+  P x0
+  -> (forall (S : T -> Prop) x,
+      (forall x, S x -> P x)
+      -> (forall x, S x -> x \in vertices G)
+      -> S x -> forall y, y \in successors G x -> P y)
+  -> forall y, has_path x0 y -> P y.
+Proof.
+move=> Px0 PS y /has_pathP[n]; elim: n y => [|n ih] y.
+- by move/has_npath0P=> [<-].
+case/has_npathSP=> x x0_p_x /[dup] px /ih Px.
+apply: (PS (fun y => has_npath n x0 y) x) => //.
+exact: has_npath_vtx.
+Qed.
+
+End DFS.
 End Connected.
 
 Section Regular.
@@ -197,27 +287,6 @@ Definition gisof f := gbij f /\ gmorph f.
 Definition giso := exists f, gisof f.
 
 End GIsomorphism.
-
-Section DFS.
-Context {T : choiceType} (G : graph T) (P : T -> Prop).
-
-Lemma ind (x0 : T) :
-     P x0
-  -> (forall (S : T -> Prop) x,
-           (forall x, S x -> P x)
-        -> (forall x, S x -> x \in vertices G)
-        -> S x -> forall y, y \in successors G x -> P y)
-  -> forall y, has_path G x0 y -> P y.
-Proof.
-move=> Px0 PS y /has_pathP[n]; elim: n y => [|n ih] y.
-- by move/has_npath0P <-.
-case/has_npathSP=> x x0_p_x /[dup] px /ih Px.
-apply: (PS (fun y => has_npath G n x0 y) x) => //.
-admit.
-- 
-
-
-
 
 Section IsoProofs.
 
@@ -248,6 +317,8 @@ Hypothesis f_morph : {in V1&, forall x y, E1 x y -> E2 (f x) (f y)}.
 Hypothesis G2_connected : connected G2.
 Hypothesis G1_regular : regular G1 n.
 Hypothesis G2_regular : regular G2 n.
+Hypothesis G1C : commutative (edges G1).
+Hypothesis G2C : commutative (edges G2).
 
 Lemma foo_succE:
   {in V1, forall x, f @` (successors G1 x) = (successors G2 (f x))}.
@@ -260,6 +331,18 @@ move=> x xV1; apply/eqP; rewrite eqEfcard; apply/andP; split.
   rewrite card_in_imfset ?G1_regular ?G2_regular ?imf ?in_imfset //=.
   move/fsubsetP: (sub_succ xV1) => succ1 p q /succ1 pV1 /succ1 qV1; exact: f_inj.
 Qed.
+
+Lemma foo_haspath:
+  {in V1&, forall x y, has_path G1 x y <-> has_path G2 (f x) (f y)}.
+Proof.
+move=> x y xV1 yV1; split.
+- elim/ind.
+	+ apply: has_pathxx; move/fsubsetP: f_leq; apply; exact: in_imfset.
+	+ move=> S x0 S_path S_vtx S_x0 y0; rewrite in_succE=> x0G1y0.
+		admit.
+admit.
+Admitted.
+
 
 Lemma bar : gisof G1 G2 f.
 Proof.

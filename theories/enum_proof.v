@@ -23,7 +23,7 @@ Definition create_perturbation (b : R) (k : 'I_m) : 'rV_(m.+1) :=
 
 Definition perturbation_seq : seq plrel :=
   map
-  (fun x: lrel * 'I_m => (x.1.1^T , create_perturbation x.1.2 x.2))
+  (fun x: lrel[R]_n * 'I_m => (x.1.1^T , create_perturbation x.1.2 x.2))
   (zip base (ord_enum m)).
 
 Lemma size_pert_: size perturbation_seq == m.
@@ -154,13 +154,13 @@ Qed.
 
 
 Definition lexi_graph :=
-  create_graph [fset L | L : lexi_basis]
+  mk_graph [fset L | L : lexi_basis]
                (fun L1 L2 => ##| maskI L1 L2 | == (n-1)%N).
 
 (* TODO: map sur des graphes
    + lemme d'isomorphisme entre ces graphes *)
 Definition lexi_mask_graph : graph [choiceType of bitseq] :=
-  create_graph ((fun x : lexi_basis => x : bitseq) @` [fset L | L : lexi_basis])
+  mk_graph ((fun x : lexi_basis => x : bitseq) @` [fset L | L : lexi_basis])
                (fun L1 L2 => ##| maskI L1 L2 | == (n-1)%N).
 
 Lemma lexi_regular : regular lexi_graph n.
@@ -185,9 +185,11 @@ Definition target_graph := lexi_mask_graph target_Po.
 Hypothesis g_struct : RatA.struct_consistent n target_Po g.
 Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 
-Definition rel_foo :=
+Definition computed_graph := mk_graph ([fset x | x in RatG.vertex_list g]) (fun (x y : bitseq) => RatG.mem_edge x y g).
+
+(* Definition rel_foo :=
   (forall x, x \in vertices (lexi_mask_graph target_Po) = RatG.mem_vertex x g)
-  /\ (forall x y, edges (lexi_mask_graph target_Po) x y = RatG.mem_edge x y g).
+  /\ (forall x y, edges (lexi_mask_graph target_Po) x y = RatG.mem_edge x y g). *)
 
 Definition low_point k := if RatG.label k g is Some l then l else 0.
 
@@ -273,13 +275,20 @@ Proof. by rewrite low_lexipoint mem_low_sat. Qed.
 
 Definition low_lexibasis := Lexb low_presat.
 
-Lemma mem_foo: k \in vertices (lexi_mask_graph target_Po).
-Proof. by rewrite vtx_create_graph; apply/imfsetP; exists low_lexibasis; rewrite ?in_imfset. Qed.
+Lemma mem_foo: k \in vertices target_graph.
+Proof. by rewrite vtx_mk_graph; apply/imfsetP; exists low_lexibasis; rewrite ?in_imfset. Qed.
 
 End LowPointIng.
 
-Lemma foo: rel_foo.
+Lemma foo: gisof computed_graph target_graph id.
 Proof.
+apply: (bar (n:=n)) => //.
+- apply/fsubsetP=> x; rewrite in_fsetE /= vtx_mk_graph in_fsetE /= RatG.vtx_mem_list; exact: mem_foo.
+- admit. (*TODO : using struct_consistent*)
+- admit. (*TODO : using maps on graphs *)
+- admit. (*TODO : using struct_consistent*)
+- admit. (*TODO : using maps on graphs*)
+- admit. (* TODO : mandatory hypothesis ?*)
 Admitted.
 
 End RelGraph.

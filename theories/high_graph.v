@@ -72,7 +72,7 @@ Definition add_vertex (g : graph T) (v : T) :=
 
 Definition add_edge (g : graph T) (v1 v2 : T) :=
   let g' := Graph g.[v1 <- Some (v2 |` odflt fset0 (g v1))] in
-  Graph g'.[v1 <- Some (v2 |` odflt fset0 (g' v1))].
+  Graph g'.[v2 <- Some (v1 |` odflt fset0 (g' v2))].
 
 Definition successors (g : graph T) (v : T) : {fset T} :=
   odflt fset0 (g v).
@@ -96,7 +96,7 @@ Section Lemmas.
 Lemma vtx0 : vertices graph0 = fset0.
 Proof. exact: finsupp0. Qed.
 
-Lemma vtx_prop0 (G : graph T): vertices G != fset0 <-> G != graph0.
+Lemma vtx_prop0 (G : graph T) : vertices G != fset0 <-> G != graph0.
 Proof.
 split; apply/contra_neq.
 - by move=> ->; rewrite vtx0.
@@ -112,14 +112,34 @@ apply/(iffP idP).
 - by move=> ?; apply/vtx_prop0/fset0Pn.
 Qed.
 
-Lemma in_succE (G : graph T) (x y : T):
+Lemma in_succE (G : graph T) (x y : T) :
   y \in successors G x = edges G x y.
 Proof. by []. Qed.
 
-Lemma sub_succ (G : graph T) (x : T):
+Lemma edge_vtxl (G : graph T) (x y : T) :
+  edges G x y -> x \in vertices G.
+Proof.
+Admitted.
+
+Lemma edge_vtxr (G : graph T) (x y : T) :
+  edges G x y -> y \in vertices G.
+Proof.
+Admitted.
+
+Lemma sub_succ (G : graph T) (x : T) :
   x \in vertices G -> successors G x `<=` vertices G.
 Proof.
 Admitted.
+
+Lemma eq_graph (G1 G2 : graph T): G1 = G2 <-> vertices G1 = vertices G2 /\ edges G1 =2 edges G2.
+Proof.
+split; first by move=> ->.
+case: G1=> f; case: G2=> g [Veq Eeq]; congr Graph; apply/fsfunP=> x.
+move/fsetP: (Eeq x); move/fsetP: Veq => /(_ x).
+rewrite /vertices /successors /=.
+case: (finsuppP f x); case: (finsuppP g x)=> //.
+by rewrite !mem_finsupp; case: (f x); case: (g x) => //= ?? _ _ _ ->.
+Qed.
 
 Section MkGraph.
 Context (V : {fset T}) (E : rel T).
@@ -303,7 +323,9 @@ Context {T : choiceType} (G : graph T).
 Let V := vertices G.
 
 Lemma edgeC : {in V&, symmetric (edges G)}.
+Proof.
 Admitted.
+
 
 Lemma undi_succE : {in V&, forall x y, (x \in successors G y) = (y \in successors G x)}.
 Proof. by move=> ????; rewrite !in_succE edgeC. Qed.
@@ -321,53 +343,81 @@ End Undirected.
 
 (* TODO: sous-graphe *)
 (* TODO: image d'un graphe *)
-(* TODO: introduce graph morpshism *)
-(* TODO: develop a small theory on graph isomorphism *
- * e.g. giso_sym, etc
- * add extra lemmas on partial bijective functions over fsets *)
-(* TODO: change definition of isomorphism to the existence of an injective graph morphism f such that  * f G1 = G2 *)
 
-(*mk_graph (f @` V) [rel x y | [exists v : V, [exists w : V, [&& f v == val x, f w = val x & edge g v w]]]].*)
+Section ImageGraph.
+Context {T1 T2 : choiceType} (G : graph T1) (f : T1 -> T2).
+Let V := vertices G.
+Let E := edges G.
+
+Definition img_graph := mk_graph (f @` V)
+  [rel x y | [exists v : V, [exists w : V, [&& f (val v) == x, f (val w) == y & E (val v) (val w)]]]].
+
+Lemma vtx_img_graph : vertices img_graph = f @` V.
+Proof. by rewrite vtx_mk_graph. Qed.
+
+Lemma edge_img_graph x y : reflect (exists2 v, f v = x & (exists2 w, f w = y & E v w)) (edges img_graph x y).
+Proof.
+rewrite edge_mk_graph /=; apply/(iffP idP).
+- case/existsP=> /= v /existsP /= [w] /and3P [fv fw vGw]; exists (fsval v); first exact/eqP.
+  by exists (fsval w); first exact/eqP.
+- case=> v fv [w fw vGw]; move: (edge_vtxl vGw) (edge_vtxr vGw)=> vV wV.
+  by apply/existsP; exists [` vV]; apply/existsP; exists [` wV] => /=; rewrite fv fw !eq_refl.
+Qed.
+
+End ImageGraph.
+
+Notation "f '@°' G" := (img_graph G f) (at level 24, format "f  '@°'  G").
 
 Section GIsomorphism.
 
 Context {T1 T2 : choiceType} (G1 : graph T1) (G2 : graph T2).
 Let V1 := vertices G1.
 Let V2 := vertices G2.
+Let E1 := edges G1.
+Let E2 := edges G2.
 
-Definition gbij (f : T1 -> T2) := {in V1&, injective f} /\ (f @` V1 = V2).
-Notation gmorph := (fun f : T1 -> T2 =>
-  {in V1&, forall x y, edges G1 x y = edges G2 (f x) (f y)}).
-Definition gisof f := gbij f /\ gmorph f.
+Definition gisof f := {in V1&, injective f} /\ f @° G1 = G2.
 Definition giso := exists f, gisof f.
-
-End GIsomorphism.
 
 Section IsoProofs.
 
-Context {T1 T2 : choiceType}.
+Lemma gisof_morph f : gisof f -> {in V1&, forall x y, E1 x y = E2 (f x) (f y)}.
+Proof.
+case=> f_inj f_G1 x y xV1 yV1; rewrite /E2 -f_G1; apply/idP/idP.
+- move=> xG1y; apply/edge_img_graph.
+  by exists x => //; exists y.
+- case/edge_img_graph=> x' + [y' +] x'G1y'.
+  move: (edge_vtxl x'G1y') (edge_vtxr x'G1y')=> x'V1 y'V1.
+  by move/f_inj => + /f_inj; rewrite xV1 yV1 x'V1 y'V1=> <- // <-.
+Qed.
 
-(* TODO: useful? *)
-Lemma iso_mk_graph (V1 : {fset T1}) (V2 : {fset T2}) (E1 : rel T1) (E2 : rel T2):
-  giso (mk_graph V1 E1) (mk_graph V2 E2) <->
-  exists (f: T1 -> T2),
-  [/\ {in V1&, injective f}, (f @` V1 = V2) &
+Lemma gisof_bij f : gisof f -> f @` V1 = V2.
+Proof. by rewrite /V2; case=> _ <-; rewrite vtx_img_graph. Qed.
+
+Lemma gisofE f:
+  gisof f <-> [/\ {in V1&, injective f}, (f @` V1 = V2) &
     {in V1&, forall x y, E1 x y = E2 (f x) (f y)}].
 Proof.
 split.
-- case=> f [[]]; rewrite !vtx_mk_graph=> ?? morph; exists f; split=> //.
-  by move=> x y xV1 yV1; move: (morph x y xV1 yV1); rewrite !edge_mk_graph.
-- case=> f [?? morph]; exists f; first split; first split; rewrite !vtx_mk_graph //.
-  move=> ????; rewrite ?edge_mk_graph; exact: morph.
+- move=> gisoff; split; [by case: gisoff|exact:gisof_bij|exact:gisof_morph].
+- case=> f_inj f_bij f_morph; split=> //.
+  apply/eq_graph; rewrite vtx_img_graph f_bij; split=> // x y.
+  apply/idP/idP.
+  + case/edge_img_graph => v <- [w <-] /[dup] /[dup] /edge_vtxl ? /edge_vtxr ?.
+    by rewrite -/E2 -f_morph.
+  + move=> xG2y; apply/edge_img_graph.
+    move: (edge_vtxl xG2y) (edge_vtxr xG2y) (xG2y); rewrite -/V2 -f_bij.
+    case/imfsetP => /= v vV1 -> /imfsetP /= [w wV1 ->] ?; exists v => //; exists w => //.
+    by rewrite -/E1 f_morph.
 Qed.
 
+Lemma gisoE: giso <-> exists f,
+  [/\ {in V1&, injective f}, (f @` V1 = V2) &
+  {in V1&, forall x y, E1 x y = E2 (f x) (f y)}].
+Proof. split; by case=> f /gisofE ?; exists f. Qed.
+
 Section Foo.
-Context (G1 : graph T1) (G2 : graph T2) (f : T1 -> T2) (n : nat).
-(* TODO: introduce graph morpshism *)
-Let V1 := vertices G1.
-Let V2 := vertices G2.
-Let E1 := edges G1.
-Let E2 := edges G2.
+Context {f : T1 -> T2}.
 Hypothesis f_inj : {in V1&, injective f}.
 Hypothesis f_leq : (f @` V1) `<=` V2.
 Hypothesis f_morph : {in V1&, forall x y, E1 x y -> E2 (f x) (f y)}.
@@ -408,14 +458,21 @@ case/imfsetP => y' /= y'_succ /f_inj -> //.
 exact: (fsubsetP (sub_succ xV1)).
 Qed.
 
-Lemma bar : gisof G1 G2 f.
+Lemma bar : gisof f.
 Proof.
-split; try split=> //; first by (apply/eqP; rewrite eqEfsubset f_leq foobar).
+apply/gisofE; split=> //; first by (apply/eqP; rewrite eqEfsubset f_leq foobar).
 move=> x y xV1 yV1; apply/idP/idP; first exact: f_morph.
 exact: barfoo.
 Qed.
 
-
 End Foo.
-
 End IsoProofs.
+End GIsomorphism.
+
+Section GisoTheory.
+Context {T1 T2 : choiceType}.
+
+Lemma gisogg (G : graph T1) : giso G G.
+Proof. by apply/gisoE; exists id; split=> //; apply/fsetP=> ?; rewrite in_fsetE. Qed.
+
+End GisoTheory.

@@ -291,12 +291,11 @@ End StructCons.
 
 Lemma foo: gisof computed_graph target_graph id.
 Proof.
-apply: (bar (n:=n)) => //.
+apply: bar => //.
 - apply/fsubsetP=> x; rewrite in_fsetE /= vtx_mk_graph in_fsetE /= RatG.vtx_mem_list; exact: mem_foo.
 - move=> x y xV yV; rewrite !edge_mk_graph; exact: low_edge. (*TODO : using struct_consistent*)
-- admit. (*TODO : using maps on graphs *)
-- admit. (*TODO : using struct_consistent*)
-- admit. (*TODO : using maps on graphs*)
+- admit. (*TODO : using giso and connectivity*)
+- admit. (*TODO : to prove using n-regularity*)
 - admit. (* TODO : mandatory hypothesis ?*)
 Admitted.
 

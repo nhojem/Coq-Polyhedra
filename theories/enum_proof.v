@@ -278,12 +278,14 @@ End LowPointIng.
 
 Section StructCons.
 
-Lemma low_edge x y: RatG.mem_edge g x y -> ##| maskI x y| == n.-1.
+Lemma low_edge x y: RatG.mem_edge g x y -> ##| maskI x y| == (n - 1)%nat.
 Proof.
 move/RatG.vertex_allP: g_struct => vtx_cond; rewrite RatG.edge_mem_list => y_nei_x.
 have: RatG.neighbour_list g x != [::] by move: y_nei_x; case: (RatG.neighbour_list g x).
 move/RatG.neighbour_list_mem => /[dup] xg /RatG.vtx_memE [e] /vtx_cond.
-Admitted.
+case/and4P=> _ _ /RatG.neighbour_allP.
+by move/(_ xg _ y_nei_x).
+Qed.
 
 End StructCons.
 
@@ -291,7 +293,7 @@ Lemma foo: gisof computed_graph target_graph id.
 Proof.
 apply: (bar (n:=n)) => //.
 - apply/fsubsetP=> x; rewrite in_fsetE /= vtx_mk_graph in_fsetE /= RatG.vtx_mem_list; exact: mem_foo.
-- admit. (*TODO : using struct_consistent*)
+- move=> x y xV yV; rewrite !edge_mk_graph; exact: low_edge. (*TODO : using struct_consistent*)
 - admit. (*TODO : using maps on graphs *)
 - admit. (*TODO : using struct_consistent*)
 - admit. (*TODO : using maps on graphs*)

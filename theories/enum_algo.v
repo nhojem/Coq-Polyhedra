@@ -48,16 +48,16 @@ Definition mask_eq (m : bitseq) (x : U):=
 
 Definition vertex_consistent :=
   let f masq x := mask_eq masq x.1 && sat_Po x.1
-  in AlgoGraph.vertex_all f G.
+  in AlgoGraph.vertex_all G f.
 
 Definition neighbour_condition I :=
   [&& size I == size Po,
       ##|I|  == n,
-      AlgoGraph.neighbour_all (fun J => ##|maskI I J| == (n-1)%nat) G I
-    & AlgoGraph.nb_neighbours I G == Some n].
+      AlgoGraph.neighbour_all G (fun J => ##|maskI I J| == (n-1)%nat) I
+    & AlgoGraph.nb_neighbours G I == Some n].
 
 Definition struct_consistent :=
-  AlgoGraph.vertex_all (fun I _ => neighbour_condition I) G.
+  AlgoGraph.vertex_all G (fun I _ => neighbour_condition I).
 
 End Body.
 End Algorithm.
@@ -474,8 +474,8 @@ Variable G2 : BQG.t.
 Context (RatPo : seq RatP.L) (BQPo : seq BQP.L).
 
 Definition eqv_graph :=
-  (RatG.mem_vertex^~ G1 =1 BQG.mem_vertex^~ G2) /\
-  (forall v1 v2, RatG.mem_edge v1 v2 G1 = BQG.mem_edge v1 v2 G2).
+  (RatG.mem_vertex G1 =1 BQG.mem_vertex G2) /\
+  (RatG.mem_edge G1 =2 BQG.mem_edge G2).
 
 Lemma perm_eqv_graph: eqv_graph ->
   perm_eq (RatG.vertex_list G1) (BQG.vertex_list G2).
@@ -496,10 +496,10 @@ rewrite (@eq_all _ (RatA.neighbour_condition n RatPo G1) (BQA.neighbour_conditio
 move=> I; rewrite /RatA.neighbour_condition /BQA.neighbour_condition.
 congr andb; first by case/andP: rPo=> /eqP ->.
 congr andb.
-case E: (RatG.mem_vertex I G1).
-- rewrite (@RatG.neighbour_all_eq _ _ (RatG.neighbour_list G1 I)) //.
+case E: (RatG.mem_vertex G1 I).
+- rewrite (@RatG.neighbour_all_eq _ _ _ (RatG.neighbour_list G1 I)) //.
   rewrite eqvtx in E.
-  rewrite (@BQG.neighbour_all_eq _ _ (BQG.neighbour_list G2 I)) //.
+  rewrite (@BQG.neighbour_all_eq _ _ _ (BQG.neighbour_list G2 I)) //.
   have perm_nei: perm_eq (RatG.neighbour_list G1 I) (BQG.neighbour_list G2 I).
   + apply/uniq_perm; rewrite ?RatG.uniq_neighbour_list ?BQG.uniq_neighbour_list //.
     by move=> x; rewrite -RatG.edge_mem_list -BQG.edge_mem_list eqedg.
@@ -517,17 +517,17 @@ Variable G1 : RatG.t.
 Variable G2 : BQG.t.
 Context (RatPo : seq RatP.L) (BQPo : seq BQP.L).
 
-Definition eqd_vtx v := match (RatG.label v G1), (BQG.label v G2) with
+Definition eqd_vtx v := match (RatG.label G1 v), (BQG.label G2 v) with
   |Some lP, Some lBQ => r_U lP lBQ
   |_, _ => false
 end.
 
-Definition eqv_data := forall v, RatG.mem_vertex v G1 -> BQG.mem_vertex v G2 ->
+Definition eqv_data := forall v, RatG.mem_vertex G1 v -> BQG.mem_vertex G2 v ->
   eqd_vtx v.
 
 Lemma eqv_data_find v xP xBQ:
   eqv_data ->
-  RatG.find_vertex v G1 = Some xP -> BQG.find_vertex v G2 = Some xBQ ->
+  RatG.find_vertex G1 v = Some xP -> BQG.find_vertex G2 v = Some xBQ ->
   r_U xP.1 xBQ.1.
 Proof.
 case: xP xBQ => lP nP [lBQ nBQ] /= eqd RatGfind BQGfind.

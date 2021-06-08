@@ -185,18 +185,18 @@ Definition target_graph := lexi_mask_graph target_Po.
 Hypothesis g_struct : RatA.struct_consistent n target_Po g.
 Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 
-Definition computed_graph := mk_graph ([fset x | x in RatG.vertex_list g]) (fun (x y : bitseq) => RatG.mem_edge x y g).
+Definition computed_graph := mk_graph ([fset x | x in RatG.vertex_list g]) (RatG.mem_edge g).
 
 (* Definition rel_foo :=
   (forall x, x \in vertices (lexi_mask_graph target_Po) = RatG.mem_vertex x g)
   /\ (forall x y, edges (lexi_mask_graph target_Po) x y = RatG.mem_edge x y g). *)
 
-Definition low_point k := if RatG.label k g is Some l then l else 0.
+Definition low_point k := if RatG.label g k is Some l then l else 0.
 
 Section LowPointIng.
 
 Context (k : bitseq).
-Hypothesis k_mem : RatG.mem_vertex k g.
+Hypothesis k_mem : RatG.mem_vertex g k.
 
 Lemma mem_low_size: size k == m.
 Proof.
@@ -216,7 +216,7 @@ Qed.
 Definition km := CMask mem_low_card.
 
 Lemma low_pointP:
-  exists2 e, RatG.find_vertex km g = Some e & e.1 = low_point km.
+  exists2 e, RatG.find_vertex g km = Some e & e.1 = low_point km.
 Proof.
 move: k_mem=> /RatG.vtx_memE [].
 by rewrite /low_point /RatG.label; case=> a b ->; exists (a,b).
@@ -284,7 +284,7 @@ Lemma foo: gisof computed_graph target_graph id.
 Proof.
 apply: (bar (n:=n)) => //.
 - apply/fsubsetP=> x; rewrite in_fsetE /= vtx_mk_graph in_fsetE /= RatG.vtx_mem_list; exact: mem_foo.
-- admit. (*TODO : using struct_consistent*)
+- move=> x y xVc yVc; rewrite !edge_mk_graph. admit. (*TODO : using struct_consistent*)
 - admit. (*TODO : using maps on graphs *)
 - admit. (*TODO : using struct_consistent*)
 - admit. (*TODO : using maps on graphs*)

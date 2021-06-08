@@ -185,7 +185,7 @@ Definition target_graph := lexi_mask_graph target_Po.
 Hypothesis g_struct : RatA.struct_consistent n target_Po g.
 Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 
-Definition computed_graph := mk_graph ([fset x | x in RatG.vertex_list g]) (RatG.mem_edge g).
+Definition computed_graph := mk_graph [fset x | x in RatG.vertex_list g] (RatG.mem_edge g).
 
 Definition low_point k := if RatG.label g k is Some l then l else 0.
 

@@ -187,10 +187,6 @@ Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 
 Definition computed_graph := mk_graph ([fset x | x in RatG.vertex_list g]) (RatG.mem_edge g).
 
-(* Definition rel_foo :=
-  (forall x, x \in vertices (lexi_mask_graph target_Po) = RatG.mem_vertex x g)
-  /\ (forall x y, edges (lexi_mask_graph target_Po) x y = RatG.mem_edge x y g). *)
-
 Definition low_point k := if RatG.label g k is Some l then l else 0.
 
 Section LowPointIng.
@@ -280,11 +276,22 @@ Proof. by rewrite vtx_mk_graph; apply/imfsetP; exists low_lexibasis; rewrite ?in
 
 End LowPointIng.
 
+Section StructCons.
+
+Lemma low_edge x y: RatG.mem_edge g x y -> ##| maskI x y| == n.-1.
+Proof.
+move/RatG.vertex_allP: g_struct => vtx_cond; rewrite RatG.edge_mem_list => y_nei_x.
+have: RatG.neighbour_list g x != [::] by move: y_nei_x; case: (RatG.neighbour_list g x).
+move/RatG.neighbour_list_mem => /[dup] xg /RatG.vtx_memE [e] /vtx_cond.
+Admitted.
+
+End StructCons.
+
 Lemma foo: gisof computed_graph target_graph id.
 Proof.
 apply: (bar (n:=n)) => //.
 - apply/fsubsetP=> x; rewrite in_fsetE /= vtx_mk_graph in_fsetE /= RatG.vtx_mem_list; exact: mem_foo.
-- move=> x y xVc yVc; rewrite !edge_mk_graph. admit. (*TODO : using struct_consistent*)
+- admit. (*TODO : using struct_consistent*)
 - admit. (*TODO : using maps on graphs *)
 - admit. (*TODO : using struct_consistent*)
 - admit. (*TODO : using maps on graphs*)

@@ -167,6 +167,12 @@ rewrite -vtx_mem_list; move/MF.inkeysP; rewrite /nb_neighbours /neighbours.
 by move/MF.not_find_in_iff => ->.
 Qed.
 
+Lemma neighbour_list_mem (G : t) x : neighbour_list G x != [::] -> mem_vertex G x.
+Proof.
+apply/contra_neqT=> /nb_neighboursF; rewrite /nb_neighbours /neighbour_list.
+by case: (neighbours G x).
+Qed.
+
 Section VertexFold.
 
 
@@ -277,6 +283,11 @@ Lemma neighbour_all_eq (G : t) (f: Map.key -> bool) v neis:
   perm_eq neis (neighbour_list G v) ->
   neighbour_all G f v = all f neis.
 Proof. by move=> ??; apply: neighbour_allE => // ??? ->. Qed.
+
+Lemma neighbour_allP (G : t) (f : Map.key -> bool) v:
+  mem_vertex G v ->
+  reflect (forall w, w \in neighbour_list G v -> f w) (neighbour_all G f v).
+Proof. move=> ?; rewrite (@neighbour_all_eq _ _ _ (neighbour_list G v)) //; exact/(equivP allP). Qed.
 
 
 End VertexFold.

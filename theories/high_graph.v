@@ -112,6 +112,9 @@ apply/(iffP idP).
 - by move=> ?; apply/vtx_prop0/fset0Pn.
 Qed.
 
+Lemma edge0 (x y : T) : edges graph0 x y = false.
+Proof. by rewrite /edges /successors /= fsfun0E /=. Qed.
+
 Lemma in_succE (G : graph T) (x y : T) :
   y \in successors G x = edges G x y.
 Proof. by []. Qed.
@@ -368,6 +371,20 @@ End ImageGraph.
 
 Notation "f '@°' G" := (img_graph G f) (at level 24, format "f  '@°'  G").
 
+Section ImgTheory.
+Context {T1 T2 : choiceType} (f : T1 -> T2).
+Lemma img_graph0 : f @° (graph0 T1) = graph0 T2.
+Proof.
+apply/eq_graph; split.
+- rewrite vtx_img_graph !vtx0; apply/fsetP=> x; apply/idP/idP/negP.
+  by case/imfsetP.
+- move=> x y; rewrite edge0.
+  apply/(introF (edge_img_graph (graph0 T1) f x y)).
+  by case=> ? _ [? _]; rewrite edge0.
+Qed.
+
+End ImgTheory.
+
 Section GIsomorphism.
 
 Context {T1 T2 : choiceType} (G1 : graph T1) (G2 : graph T2).
@@ -469,10 +486,105 @@ End Foo.
 End IsoProofs.
 End GIsomorphism.
 
-Section GisoTheory.
-Context {T1 T2 : choiceType}.
+Module XFinmap.
+Section XFinmap.
+Context {T1 T2: choiceType} (f : T1 -> T2) (S1 : {fset T1}) (x0 : S1).
+Let S2 := f @` S1.
+Hypothesis f_inj : {in S1&, injective f}.
 
-Lemma gisogg (G : graph T1) : giso G G.
+Lemma tmp : f (val x0) \in S2. Proof. exact/in_imfset/valP. Qed.
+Definition fS : S1 -> S2 := fun x=> insubd [` tmp] (f (val x)).
+Lemma has_inv (y : S2) : exists x, fS x == y.
+Proof. 
+case/imfsetP: (valP y)=> /= x xS1 y_eq; exists [` xS1].
+by rewrite -val_eqE val_insubd /= in_imfset ?y_eq.
+Qed.
+Definition fS_inv (y : S2) := xchoose (has_inv y).
+Definition f_inv (y : T2) := val (fS_inv (insubd [`tmp ] y)).
+
+Lemma fS_inj : injective fS.
+Proof.
+move=> x y /(congr1 val); rewrite !insubdK ?in_imfset ?(valP x) ?(valP y) //.
+move/f_inj=> /(_ (valP x) (valP y)); exact: val_inj.
+Qed.
+
+Lemma fSK : cancel fS fS_inv.
+Proof.
+move=> x.
+move/eqP : (xchooseP (has_inv (fS x))); exact: fS_inj.
+Qed.
+
+Lemma fSKd : cancel fS_inv fS.
+Proof.
+move=> x; exact/eqP/(xchooseP (has_inv x)).
+Qed.
+
+Lemma fK : {in S1, cancel f f_inv}.
+Proof.
+move=> x xS1.
+have ->: x = val [`xS1] by []; congr val.
+exact/fSK.
+Qed.
+
+Lemma fKd : {in S2, cancel f_inv f}.
+Proof. by move=> x /imfsetP [/= y yS1 ->]; rewrite fK. Qed.
+
+End XFinmap.
+End XFinmap.
+
+Section Bijections.
+
+Context {T1 T2: choiceType} (f : T1 -> T2) (S1 : {fset T1}).
+Hypothesis f_inj : {in S1 &, injective f}.
+Hypothesis S1_neq0 : S1 != fset0.
+Let S2 := f @` S1.
+
+Let x0 := [` xchooseP (fset0Pn _ S1_neq0) ].
+Lemma in_bij : exists2 g, {in S1, cancel f g} & {in S2, cancel g f}.
+Proof. exists (XFinmap.f_inv f x0); [exact: (XFinmap.fK) | exact: (XFinmap.fKd)]. Qed. 
+Lemma in_inv : exists2 g, {in S2 &, injective g} & g @` S2 = S1.
+Proof.
+case: in_bij=> g can_fg can_gf; exists g.
+- move=> x y /imfsetP [/= x' x'S1 ->] /imfsetP [/= y' y'S1 ->].
+  by rewrite !can_fg // => ->.
+- apply/fsetP=> x; apply/idP/idP.
+  + case/imfsetP=> /= x' /imfsetP [/= x'' x''S1 ->] ->.
+    by rewrite can_fg.
+  + by move=> xS1; apply/imfsetP=> /=; exists (f x); rewrite ?in_imfset ?can_fg.
+Qed.
+
+End Bijections.
+
+
+Section GisoTheory.
+
+Lemma gisogg {T : choiceType} (G : graph T) : giso G G.
 Proof. by apply/gisoE; exists id; split=> //; apply/fsetP=> ?; rewrite in_fsetE. Qed.
+
+Lemma giso0n {T1 T2 : choiceType} (G1 : graph T1) (G2 : graph T2) :
+  giso G1 G2 -> G1 != (graph0 T1) -> G2 != (graph0 T2).
+Proof.
+case=> f [f_inj] => <-.
+case/graph0Pn=> x xV1; apply/graph0Pn; exists (f x).
+by rewrite vtx_img_graph in_imfset.
+Qed.
+
+Lemma giso00 {T1 T2 : choiceType} (f: T1 -> T2) : giso (graph0 T1) (graph0 T2).
+Proof. by exists f; split; rewrite ?img_graph0 //; move=> x y; rewrite vtx0. Qed. 
+
+Lemma giso_sym {T1 T2 : choiceType} (G1 : graph T1) (G2 : graph T2) :
+  G1 != graph0 T1 -> giso G1 G2 -> giso G2 G1.
+Proof.
+move=> /graph0Pn/fset0Pn G1_n0 /gisoE [f [f_inj f_surj f_morph]].
+apply/gisoE; case: (in_bij f_inj G1_n0)=> g can_fg can_gf.
+exists g; split; rewrite -f_surj.
+- move=> x y /imfsetP [/= x' x'V1 ->] /imfsetP [/= y' y'V1 ->].
+  by rewrite !can_fg // => ->.
+- apply/fsetP=> x; apply/idP/idP.
+  + by case/imfsetP=> /= x' /imfsetP [/= x'' ? -> ->]; rewrite can_fg.
+  + by move=> xV1; apply/imfsetP; exists (f x); rewrite ?in_imfset ?can_fg.
+- move=> x y /imfsetP [/= x' x'V1 ->] /imfsetP [/= y' y'V1 ->].
+  by rewrite !can_fg -?f_morph.
+Qed.
 
 End GisoTheory.

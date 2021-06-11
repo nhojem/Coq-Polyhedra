@@ -107,7 +107,7 @@ apply/(sameP idP)/(iffP idP).
 - move/MF.inkeysP => ?; exact/MF.mem_in_iff.
 Qed.
 
-Lemma edge_mem_list (G : t) v1 v2:
+Lemma edge_mem_list (G : t) v1 v2 :
   mem_edge G v1 v2 = (v2 \in neighbour_list G v1).
 Proof.
 rewrite /neighbour_list /neighbours /mem_edge.
@@ -116,6 +116,16 @@ apply/(sameP idP)/(iffP idP).
 - by move/MF.infsetP/FSet.mem_1.
 - by move/FSet.mem_2/MF.infsetP.
 Qed.
+
+Lemma edge_vtxl (G : t) v1 v2 :
+  mem_edge G v1 v2 -> mem_vertex G v1.
+Proof.
+Admitted.
+
+Lemma edge_vtxr (G : t) v1 v2 :
+  mem_edge G v1 v2 -> mem_vertex G v2.
+Proof.
+Admitted.
 
 Lemma vtx_memE (G : t) v:
   mem_vertex G v <-> (exists e, find_vertex G v = Some e).
@@ -171,6 +181,17 @@ Lemma neighbour_list_mem (G : t) x : neighbour_list G x != [::] -> mem_vertex G 
 Proof.
 apply/contra_neqT=> /nb_neighboursF; rewrite /nb_neighbours /neighbour_list.
 by case: (neighbours G x).
+Qed.
+
+Lemma neighbour_listE (G : t) v :
+  perm_eq (neighbour_list G v) [seq w <- vertex_list G | mem_edge G v w].
+Proof.
+apply/uniq_perm.
+- exact: uniq_neighbour_list.
+- exact/filter_uniq/uniq_vtx_list.
+- move=> w; rewrite mem_filter vtx_mem_list -edge_mem_list.
+  apply/idP/idP; last by case/andP.
+  by move/[dup]/edge_vtxr => -> ->.
 Qed.
 
 Section VertexFold.

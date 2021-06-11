@@ -155,13 +155,20 @@ Qed.
 
 Definition lexi_graph :=
   mk_graph [fset L | L : lexi_basis]
-               (fun L1 L2 => ##| maskI L1 L2 | == (n-1)%N).
+    (fun L1 L2 => ##| maskI L1 L2 | == (n-1)%N).
 
 (* TODO: map sur des graphes
    + lemme d'isomorphisme entre ces graphes *)
-Definition lexi_mask_graph : graph [choiceType of bitseq] :=
-  mk_graph ((fun x : lexi_basis => x : bitseq) @` [fset L | L : lexi_basis])
-               (fun L1 L2 => ##| maskI L1 L2 | == (n-1)%N).
+
+
+Definition lexi_mask_graph :=
+  (fun x : lexi_basis => x : bitseq) @° lexi_graph.
+
+Lemma lexi_giso : giso lexi_graph lexi_mask_graph.
+Proof.
+exists (fun x : lexi_basis => x : bitseq); split=> // ?? _ _.
+by do 4! move/val_inj.
+Qed.
 
 Lemma lexi_regular : regular lexi_graph n.
 Proof. Admitted.
@@ -186,6 +193,7 @@ Hypothesis g_struct : RatA.struct_consistent n target_Po g.
 Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 
 Definition computed_graph := mk_graph [fset x | x in RatG.vertex_list g] (RatG.mem_edge g).
+Hypothesis cgraph_neq0 : computed_graph != (graph0 _).
 
 Definition low_point k := if RatG.label g k is Some l then l else 0.
 
@@ -272,7 +280,10 @@ Proof. by rewrite low_lexipoint mem_low_sat. Qed.
 Definition low_lexibasis := Lexb low_presat.
 
 Lemma mem_foo: k \in vertices target_graph.
-Proof. by rewrite vtx_mk_graph; apply/imfsetP; exists low_lexibasis; rewrite ?in_imfset. Qed.
+Proof. 
+rewrite vtx_img_graph vtx_mk_graph; apply/imfsetP.
+by exists low_lexibasis; rewrite ?in_imfset.
+Qed.
 
 End LowPointIng.
 
@@ -287,17 +298,77 @@ case/and4P=> _ _ /RatG.neighbour_allP.
 by move/(_ xg _ y_nei_x).
 Qed.
 
+Lemma edge_target : {in vertices computed_graph &, forall x y,
+  edges computed_graph x y -> edges target_graph x y}.
+Proof.
+move=> x y; rewrite vtx_mk_graph !inE /= !RatG.vtx_mem_list=> xVc yVc.
+rewrite edge_mk_graph ?inE ?RatG.vtx_mem_list //.
+move/low_edge=> maskIxy; apply/edge_img_graph.
+exists (low_lexibasis xVc)=> //; exists (low_lexibasis yVc)=> //.
+by rewrite edge_mk_graph // ?inE.
+Qed.
+
+Lemma regular_computed : regular computed_graph n.
+Proof.
+move=> x; rewrite vtx_mk_graph inE RatG.vtx_mem_list => xVc.
+case/RatG.vtx_memE : (xVc) => e x_find_e.
+move/RatG.vertex_allP : g_struct => /(_ x e x_find_e).
+case/and4P => _ _ _; rewrite RatG.nb_neighbours_list //.
+move/eqP/Some_inj => <-; rewrite succ_mk_graph ?inE ?RatG.vtx_mem_list //=.
+move/perm_size: (RatG.neighbour_listE g x) => ->.
+rewrite card_imfset //= !size_filter; apply/permP.
+apply/(perm_trans (enum_imfset _ _))=> //=.
+by rewrite map_id undup_id ?RatG.uniq_vtx_list ?perm_refl.
+Qed.
+
+Lemma low_succE : {in vertices computed_graph, forall x,
+  successors computed_graph x = successors target_graph x}.
+Proof.
+move=> x xV1; apply/eqP; rewrite eqEfcard; apply/andP; split.
+- apply/fsubsetP=> y; rewrite !in_succE=> /[dup] /edge_vtxr yV1.
+  exact:(edge_target).
+- rewrite (regular_computed xV1) (giso_regular (n:=n) (lexi_giso _)) //.
+  + exact/lexi_regular.
+  + rewrite vtx_mk_graph inE RatG.vtx_mem_list in xV1.
+    rewrite vtx_img_graph vtx_mk_graph; apply/imfsetP.
+    by exists (low_lexibasis xV1); rewrite ?inE.
+Qed.
+
+(*Lemma foo_succE:
+  {in V1, forall x, f @` (successors G1 x) = (successors G2 (f x))}.
+Proof.
+move=> x xV1; apply/eqP; rewrite eqEfcard; apply/andP; split.
+- apply/fsubsetP=> y /imfsetP [y' /= y'succ ->].
+  move/fsubsetP: (sub_succ xV1) => /(_ y' y'succ) y'V1.
+  rewrite in_succE; exact: f_morph.
+- move/fsubsetP: f_leq => imf.
+  rewrite card_in_imfset ?G1_regular ?G2_regular ?imf ?in_imfset //=.
+  move/fsubsetP: (sub_succ xV1) => succ1 p q /succ1 pV1 /succ1 qV1; exact: f_inj.
+Qed.*)
+
 End StructCons.
 
-Lemma foo: gisof computed_graph target_graph id.
+Lemma foo: giso computed_graph target_graph.
 Proof.
-apply: bar => //.
+exists id; apply: bar => //.
 - apply/fsubsetP=> x; rewrite in_fsetE /= vtx_mk_graph in_fsetE /= RatG.vtx_mem_list; exact: mem_foo.
-- move=> x y xV yV; rewrite !edge_mk_graph; exact: low_edge. (*TODO : using struct_consistent*)
-- admit. (*TODO : using giso and connectivity*)
-- admit. (*TODO : to prove using n-regularity*)
-- admit. (* TODO : mandatory hypothesis ?*)
-Admitted.
+- exact: edge_target. 
+- exact/(giso_connected (lexi_giso _))/lexi_connected.
+- by move=> x xVc; rewrite low_succE //; apply/fsetP=> y; rewrite inE.
+Qed.
+
+Lemma witness : exists x, x \in vertices (lexi_graph target_Po).
+Proof.
+case/graph0Pn : cgraph_neq0=> x.
+rewrite vtx_mk_graph inE RatG.vtx_mem_list=> xVc.
+by exists (low_lexibasis xVc); rewrite vtx_mk_graph inE.
+Qed.
+
+Lemma correctness : giso computed_graph (lexi_graph target_Po).
+Proof.
+apply/(giso_trans foo)/(giso_sym (xchoose witness)); last exact:lexi_giso.
+Qed.
+
 
 End RelGraph.
 

@@ -160,6 +160,16 @@ Proof.
 by move=> x y xV yV; rewrite -in_succE /successors /= fsfunE xV /= !inE yV.
 Qed.
 
+Lemma succ_mk_graph : {in V, forall x,
+  successors (mk_graph V E) x = [fset y in V | E x y]}.
+Proof.
+move=> x xV; apply/fsetP=> y; rewrite in_succE !inE /=.
+apply/idP/idP.
+- move=> /[dup] /edge_vtxr; rewrite vtx_mk_graph=> yV.
+  by rewrite edge_mk_graph // yV.
+- by case/andP => /= yV xEy; rewrite edge_mk_graph.
+Qed.
+
 End MkGraph.
 End Lemmas.
 
@@ -511,17 +521,7 @@ Hypothesis G_succ : {in V1, forall x, f @` (successors G1 x) = successors G2 (f 
 Hypothesis G1_neq0 : G1 != (graph0 T1).
 
 (* TODO: move to enum_proof.v *)
-(*Lemma foo_succE:
-  {in V1, forall x, f @` (successors G1 x) = (successors G2 (f x))}.
-Proof.
-move=> x xV1; apply/eqP; rewrite eqEfcard; apply/andP; split.
-- apply/fsubsetP=> y /imfsetP [y' /= y'succ ->].
-  move/fsubsetP: (sub_succ xV1) => /(_ y' y'succ) y'V1.
-  rewrite in_succE; exact: f_morph.
-- move/fsubsetP: f_leq => imf.
-  rewrite card_in_imfset ?G1_regular ?G2_regular ?imf ?in_imfset //=.
-  move/fsubsetP: (sub_succ xV1) => succ1 p q /succ1 pV1 /succ1 qV1; exact: f_inj.
-Qed.*)
+
 
 Lemma foo_has_path : {in V1, forall x, forall y, has_path G2 (f x) y -> y \in f @` V1}.
 Proof.

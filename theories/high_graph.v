@@ -29,12 +29,33 @@ Notation "f .[ k <-? v ]" := (fsfun_dupd f k v)
 Section GraphDef.
 Context (T : choiceType).
 
-Variant graph :=
-  Graph of {fsfun T -> option {fset T} with None}.
+Implicit Type (fs : {fsfun T -> option {fset T} with None}).
 
-Coercion graph_val (G : graph) := let: Graph g := G in g.
+Definition codom_sub fs :=
+  [forall x : finsupp fs, (odflt fset0 (fs (val x))) `<=` finsupp fs].
 
-Canonical graph_subType := Eval hnf in [newType for graph_val].
+Lemma codom_subP fs :
+  reflect {in (finsupp fs), forall x, odflt fset0 (fs x) `<=` finsupp fs} (codom_sub fs).
+Admitted.
+
+Definition sym fs :=
+  [forall x : finsupp fs,
+      [forall y : finsupp fs,
+          val y \in (odflt fset0 (fs (val x)))
+                    == (val x \in (odflt fset0 (fs (val y)))) ]].
+
+Lemma symP fs :
+  reflect {in finsupp fs&, forall x y, (y \in odflt fset0 (fs x)) = (x \in odflt fset0 (fs y))}
+          (sym fs).
+Admitted.
+
+Inductive graph :=
+  Graph { fs : {fsfun T -> option {fset T} with None};
+          _  : codom_sub fs && sym fs }.
+
+Coercion graph_val (G : graph) := let: Graph g _ := G in g.
+
+Canonical graph_subType := Eval hnf in [subType for graph_val].
 
 Definition graph_eqMixin :=
   Eval hnf in [eqMixin of graph by <:].
@@ -64,15 +85,19 @@ End GraphOf.
 Section GraphBasics.
 Context (T : choiceType).
 
-Definition graph0 : graph T :=
-  Graph [fsfun].
+Program Definition graph0 : graph T := @Graph _ [fsfun] _.
+Next Obligation.
+apply/andP; split.
+- apply/codom_subP => x; by rewrite finsupp0 inE.
+- apply/symP => x y; by rewrite finsupp0 inE.
+Qed.
 
-Definition add_vertex (g : graph T) (v : T) :=
+(*Definition add_vertex (g : graph T) (v : T) :=
   Graph g.[v <-? Some fset0].
 
 Definition add_edge (g : graph T) (v1 v2 : T) :=
   let g' := Graph g.[v1 <- Some (v2 |` odflt fset0 (g v1))] in
-  Graph g'.[v2 <- Some (v1 |` odflt fset0 (g' v2))].
+  Graph g'.[v2 <- Some (v1 |` odflt fset0 (g' v2))].*)
 
 Definition successors (g : graph T) (v : T) : {fset T} :=
   odflt fset0 (g v).
@@ -88,10 +113,22 @@ Definition predecessors (g : graph T) (v : T) : {fset T} :=
 
 (* Introduce notation *)
 (* create_graph -> mk_graph *)
-Definition mk_graph (V : {fset T}) (E : rel T) : graph T :=
-  Graph [fsfun v in V => Some [fset w | w in V & E v w] | None].
+Program Definition mk_graph (V : {fset T}) (E : rel T) : graph T :=
+  @Graph _ [fsfun v in V => Some [fset w | w in V & (E v w || E w v)] | None] _.
+Next Obligation.
+apply/andP; split.
+- apply/codom_subP=> x x_in.
+  rewrite fsfunE ifT /=; last by move: x_in; apply/fsubsetP/finsupp_sub.
+  apply/fsubsetP=> y; rewrite !inE /= =>/andP [y_in] _.
+  by rewrite mem_finsupp fsfunE y_in.
+- apply/symP=> x y x_in y_in.
+  have x_in_V: x \in V by move: x_in; apply/fsubsetP/finsupp_sub.
+  have y_in_V: y \in V by move: y_in; apply/fsubsetP/finsupp_sub.
+  by rewrite !fsfunE !ifT //= !inE orbC x_in_V y_in_V.
+Qed.
 
 Section Lemmas.
+
 
 Lemma vtx0 : vertices graph0 = fset0.
 Proof. exact: finsupp0. Qed.
@@ -101,9 +138,11 @@ Proof.
 split; apply/contra_neq.
 - by move=> ->; rewrite vtx0.
 - case: G=> f; rewrite /vertices /= => h.
+  Admitted.
+(*
   congr Graph; apply/fsfunP=> x /=; rewrite fsfun0E.
   by apply: fsfun_dflt; rewrite h in_fset0.
-Qed.
+Qed.*)
 
 Lemma graph0Pn (G : graph T) : reflect (exists x : T, x \in vertices G) (G != graph0).
 Proof.
@@ -126,10 +165,16 @@ rewrite /vertices -in_succE /successors.
 by case : (finsuppP G).
 Qed.
 
+Lemma edgeC (G : graph T) : {in (vertices G) &, symmetric (edges G)}.
+Proof.
+move=> v w.
+Admitted.
+
+
 Lemma edge_vtxr (G : graph T) (x y : T) :
   edges G x y -> y \in vertices G.
 Proof.
-Admitted. (* TODO : definition of graph ?*)
+Admitted.
 
 Lemma sub_succ (G : graph T) (x : T) :
   successors G x `<=` vertices G.
@@ -381,10 +426,6 @@ Section Undirected.
 Context {T : choiceType} (G : graph T).
 Let V := vertices G.
 
-Lemma edgeC : {in V&, symmetric (edges G)}.
-Proof.
-Admitted.
-
 
 Lemma undi_succE : {in V&, forall x y, (x \in successors G y) = (y \in successors G x)}.
 Proof. by move=> ????; rewrite !in_succE edgeC. Qed.
@@ -584,7 +625,7 @@ Let x1 := [` xchooseP (fset0Pn _ S1_neq0) ].
 Lemma tmp : f (val x1) \in S2. Proof. exact/in_imfset/valP. Qed.
 Definition fS : S1 -> S2 := fun x=> insubd [` tmp] (f (val x)).
 Lemma has_inv (y : S2) : exists x, fS x == y.
-Proof. 
+Proof.
 case/imfsetP: (valP y)=> /= x xS1 y_eq; exists [` xS1].
 by rewrite -val_eqE val_insubd /= in_imfset ?y_eq.
 Qed.
@@ -667,7 +708,7 @@ by rewrite vtx_img_graph in_imfset.
 Qed.
 
 Lemma giso00 {T1 T2 : choiceType} (f: T1 -> T2) : giso (graph0 T1) (graph0 T2).
-Proof. by exists f; split; rewrite ?img_graph0 //; move=> x y; rewrite vtx0. Qed. 
+Proof. by exists f; split; rewrite ?img_graph0 //; move=> x y; rewrite vtx0. Qed.
 
 Lemma giso_sym {T1 T2 : choiceType} (G1 : graph T1) (G2 : graph T2) (x0 : T1):
   giso G1 G2 -> giso G2 G1.

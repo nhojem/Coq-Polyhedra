@@ -35,8 +35,13 @@ Definition codom_sub fs :=
   [forall x : finsupp fs, (odflt fset0 (fs (val x))) `<=` finsupp fs].
 
 Lemma codom_subP fs :
-  reflect {in (finsupp fs), forall x, odflt fset0 (fs x) `<=` finsupp fs} (codom_sub fs).
-Admitted.
+  reflect {in (finsupp fs), forall x, odflt fset0 (fs x) `<=` finsupp fs}
+		(codom_sub fs).
+Proof.
+apply/(iffP idP).
+- by move/forallP=> H x xfs; move: (H [` xfs]).
+- move=> H; apply/forallP=> x; exact/H/valP.
+Qed.
 
 Definition sym fs :=
   [forall x : finsupp fs,
@@ -45,11 +50,17 @@ Definition sym fs :=
                     == (val x \in (odflt fset0 (fs (val y)))) ]].
 
 Lemma symP fs :
-  reflect {in finsupp fs&, forall x y, (y \in odflt fset0 (fs x)) = (x \in odflt fset0 (fs y))}
-          (sym fs).
-Admitted.
+  reflect
+	{in finsupp fs&, forall x y, (y \in odflt fset0 (fs x)) = (x \in odflt fset0 (fs y))}
+  (sym fs).
+Proof.
+apply/(iffP idP).
+- move/forallP => Hx x + xfs; move/forallP: (Hx [` xfs])=> Hy y yfs.
+	by move/eqP: (Hy [`yfs]).
+- move=> H; apply/forallP => x; apply/forallP=> y; apply/eqP/H; exact/valP.
+Qed.
 
-Inductive graph :=
+Record graph :=
   Graph { fs : {fsfun T -> option {fset T} with None};
           _  : codom_sub fs && sym fs }.
 
@@ -108,8 +119,8 @@ Definition vertices (g : graph T) : {fset T} :=
 Definition edges (g : graph T) : rel T :=
   [rel x y | y \in successors g x].
 
-Definition predecessors (g : graph T) (v : T) : {fset T} :=
-  [fset x in vertices g | edges g x v].
+(* Definition predecessors (g : graph T) (v : T) : {fset T} :=
+  [fset x in vertices g | edges g x v]. *)
 
 (* Introduce notation *)
 (* create_graph -> mk_graph *)
@@ -129,20 +140,32 @@ Qed.
 
 Section Lemmas.
 
+Lemma graphE (G1 G2 : graph T): G1 = G2 <-> vertices G1 = vertices G2 /\ edges G1 =2 edges G2.
+Proof.
+split; first by move=> ->.
+case: G1=> f; case: G2=> g hg hf /= [] vtxE edgeE; apply/eqP; rewrite -val_eqE /=.  
+apply/eqP/fsfunP=> x.
+move: (edgeE x); rewrite /edges /successors /=.
+move: vtxE; rewrite /vertices /=; move/fsetP/(_ x).
+rewrite !mem_finsupp.
+by case: (f x); case: (g x)=> //= ?? _ /fsetP ->.
+Qed.
 
 Lemma vtx0 : vertices graph0 = fset0.
 Proof. exact: finsupp0. Qed.
+
+Lemma edge0 (x y : T) : edges graph0 x y = false.
+Proof. by rewrite /edges /successors /= fsfun0E /=. Qed.
 
 Lemma vtx_prop0 (G : graph T) : vertices G != fset0 <-> G != graph0.
 Proof.
 split; apply/contra_neq.
 - by move=> ->; rewrite vtx0.
-- case: G=> f; rewrite /vertices /= => h.
-  Admitted.
-(*
-  congr Graph; apply/fsfunP=> x /=; rewrite fsfun0E.
-  by apply: fsfun_dflt; rewrite h in_fset0.
-Qed.*)
+- move=> vtx_eq0; apply/graphE; rewrite vtx0; split=> //.
+	move=> x y; rewrite edge0 /edges /successors /=.
+	move: vtx_eq0; rewrite /vertices; move/fsetP/(_ x); rewrite in_fset0.
+	by case: finsuppP.
+Qed.
 
 Lemma graph0Pn (G : graph T) : reflect (exists x : T, x \in vertices G) (G != graph0).
 Proof.
@@ -151,8 +174,6 @@ apply/(iffP idP).
 - by move=> ?; apply/vtx_prop0/fset0Pn.
 Qed.
 
-Lemma edge0 (x y : T) : edges graph0 x y = false.
-Proof. by rewrite /edges /successors /= fsfun0E /=. Qed.
 
 Lemma in_succE (G : graph T) (x y : T) :
   y \in successors G x = edges G x y.
@@ -165,30 +186,25 @@ rewrite /vertices -in_succE /successors.
 by case : (finsuppP G).
 Qed.
 
-Lemma edgeC (G : graph T) : {in (vertices G) &, symmetric (edges G)}.
-Proof.
-move=> v w.
-Admitted.
-
-
 Lemma edge_vtxr (G : graph T) (x y : T) :
   edges G x y -> y \in vertices G.
 Proof.
-Admitted.
+move/[dup] => /edge_vtxl.
+case: G=> f; rewrite /edges /vertices /successors /=.
+case/andP=> /codom_subP /(_ x)=> codom_f _ /codom_f /fsubsetP; exact.
+Qed.
+
+Lemma edgeC (G : graph T) : {in (vertices G) &, symmetric (edges G)}.
+Proof.
+move=> v w; case: G=> f; rewrite /edges /vertices /successors /=.
+case/andP=>  _ /symP symH vG wG; exact/symH.
+Qed.
+
 
 Lemma sub_succ (G : graph T) (x : T) :
   successors G x `<=` vertices G.
 Proof. apply/fsubsetP=> y; rewrite in_succE; exact: edge_vtxr. Qed.
 
-Lemma graphE (G1 G2 : graph T): G1 = G2 <-> vertices G1 = vertices G2 /\ edges G1 =2 edges G2.
-Proof.
-split; first by move=> ->.
-case: G1=> f; case: G2=> g [Veq Eeq]; congr Graph; apply/fsfunP=> x.
-move/fsetP: (Eeq x); move/fsetP: Veq => /(_ x).
-rewrite /vertices /successors /=.
-case: (finsuppP f x); case: (finsuppP g x)=> //.
-by rewrite !mem_finsupp; case: (f x); case: (g x) => //= ?? _ _ _ ->.
-Qed.
 
 Section MkGraph.
 Context (V : {fset T}) (E : rel T).
@@ -200,19 +216,30 @@ apply/eqP; rewrite eqEfsubset; apply/andP; split.
 - by apply/fsubsetP=> x; rewrite mem_finsupp fsfunE => ->.
 Qed.
 
-Lemma edge_mk_graph : {in V&, edges (mk_graph V E) =2 E}.
+Lemma edge_mk_graph : {in V&, forall x y, edges (mk_graph V E) x y = (E x y || E y x)}.
 Proof.
 by move=> x y xV yV; rewrite -in_succE /successors /= fsfunE xV /= !inE yV.
 Qed.
 
+Lemma edgeC_mk_graph : {in V&, symmetric E} ->
+  {in V&, forall x y, edges (mk_graph V E) x y = E x y}.
+Proof. by move=> symE x y xV yV; rewrite edge_mk_graph // symE // orbb. Qed.
+
 Lemma succ_mk_graph : {in V, forall x,
-  successors (mk_graph V E) x = [fset y in V | E x y]}.
+  successors (mk_graph V E) x = [fset y in V | E x y || E y x]}.
 Proof.
 move=> x xV; apply/fsetP=> y; rewrite in_succE !inE /=.
 apply/idP/idP.
 - move=> /[dup] /edge_vtxr; rewrite vtx_mk_graph=> yV.
   by rewrite edge_mk_graph // yV.
 - by case/andP => /= yV xEy; rewrite edge_mk_graph.
+Qed.
+
+Lemma succC_mk_graph : {in V&, symmetric E} ->
+{in V, forall x, successors (mk_graph V E) x = [fset y in V | E x y]}.
+Proof.
+move=> symE x xV; rewrite succ_mk_graph //; apply/fsetP=> y.
+by rewrite !inE /=; apply/andb_id2l=> yV; rewrite symE // orbb.
 Qed.
 
 End MkGraph.
@@ -457,18 +484,22 @@ Lemma vtx_img_graph : vertices img_graph = f @` V.
 Proof. by rewrite vtx_mk_graph. Qed.
 
 Lemma edge_img_graph x y : reflect
-  (exists2 v, f v = x & (exists2 w, f w = y & E v w))
+  (exists v, (exists w, [/\ f v = x, f w = y & (E v w)]))
   (edges img_graph x y).
 Proof.
 apply/(iffP idP).
 - move/[dup]/[dup] => /edge_vtxl + /edge_vtxr.
   rewrite vtx_img_graph=> xV2 yV2; rewrite edge_mk_graph //=.
-  case/existsP=> x' /existsP [y'] /and3P [/eqP <- /eqP <- x'Gy'].
-  by exists (fsval x')=> //; exists (fsval y').
-- case=> x' fx' [y' fy' /[dup] /[dup] x'Gy' /edge_vtxl x'G /edge_vtxr y'G].
-  rewrite edge_mk_graph /= -?fx' -?fy' ?in_imfset //.
-  apply/existsP; exists [` x'G]; apply/existsP; exists [` y'G].
-  by rewrite !eq_refl x'Gy'.
+	case/orP.
+	+ case/existsP=> x'; case/existsP=> y'; case/and3P => /eqP <- /eqP <- ?.
+		by exists (fsval x'); exists (fsval y'); split.
+	+ case/existsP=> x'; case/existsP=> y'; case/and3P => /eqP <- /eqP <- ?.
+		exists (fsval y'); exists (fsval x'); split=> //.
+		by rewrite /E; rewrite edgeC ?fsvalP.
+- case=> x' [y'] [<- <- /[dup] /[dup] /edge_vtxl x'V /edge_vtxr y'V x'Gy'].
+	rewrite edge_mk_graph ?in_imfset //=.
+	apply/orP; left; apply/existsP; exists [` x'V]; apply/existsP; exists [` y'V].
+	by rewrite !eq_refl x'Gy'.
 Qed.
 
 End ImageGraph.
@@ -484,7 +515,7 @@ apply/graphE; split.
   by case/imfsetP.
 - move=> x y; rewrite edge0.
   apply/(introF (edge_img_graph (graph0 T1) f x y)).
-  by case=> ? _ [? _]; rewrite edge0.
+  by case=> ? [? []]; rewrite edge0.
 Qed.
 
 Lemma comp_img_graph (G : graph T1) : (g \o f) @° G = g @° (f @° G).
@@ -495,11 +526,12 @@ apply/graphE; split.
   + case/imfsetP=> /= x0 /imfsetP [/= x1 x1G -> ->]; apply/imfsetP.
     by exists x1.
 - move=> x y; apply/idP/idP.
-  + case/edge_img_graph=> x' <- [y' <- x'Gy']; apply/edge_img_graph.
-    exists (f x')=> //; exists (f y')=> //; apply/edge_img_graph.
+  + case/edge_img_graph => x' [y' [<- <- x'Gy']]; apply/edge_img_graph.
+    exists (f x')=> //; exists (f y')=> //; split=> //; apply/edge_img_graph.
     by exists x'=> //; exists y'.
-  + case/edge_img_graph=> x' <- [y' <- /edge_img_graph [x'' <- [y'' <- xGy'']]].
-    by apply/edge_img_graph; exists x''=> //; exists y''.
+  + case/edge_img_graph => x' [y' [<- <- /edge_img_graph]].
+		case=> x'' [y'' [<- <- xGy'']]; apply/edge_img_graph.
+		by exists x''; exists y''.
 Qed.
 
 End ImgTheory.
@@ -522,9 +554,8 @@ Proof.
 case=> f_inj f_G1 x y xV1 yV1; rewrite /E2 -f_G1; apply/idP/idP.
 - move=> xG1y; apply/edge_img_graph.
   by exists x => //; exists y.
-- case/edge_img_graph=> x' + [y' +] x'G1y'.
-  move: (edge_vtxl x'G1y') (edge_vtxr x'G1y')=> x'V1 y'V1.
-  by move/f_inj => + /f_inj; rewrite xV1 yV1 x'V1 y'V1=> <- // <-.
+- case/edge_img_graph => x' [y' [+ + /[dup] /[dup] /edge_vtxl x'V1 /edge_vtxr y'V1]].
+	by move/f_inj=> -> // /f_inj ->.
 Qed.
 
 Lemma gisof_bij f : gisof f -> f @` V1 = V2.
@@ -539,12 +570,14 @@ split.
 - case=> f_inj f_bij f_morph; split=> //.
   apply/graphE; rewrite vtx_img_graph f_bij; split=> // x y.
   apply/idP/idP.
-  + case/edge_img_graph => v <- [w <-] /[dup] /[dup] /edge_vtxl ? /edge_vtxr ?.
-    by rewrite -/E2 -f_morph.
-  + move=> xG2y; apply/edge_img_graph.
-    move: (edge_vtxl xG2y) (edge_vtxr xG2y) (xG2y); rewrite -/V2 -f_bij.
-    case/imfsetP => /= v vV1 -> /imfsetP /= [w wV1 ->] ?; exists v => //; exists w => //.
-    by rewrite -/E1 f_morph.
+  + case/edge_img_graph=> x' [y' [<- <-]].
+		move=> /[dup] /[dup] /edge_vtxl x'V1 /edge_vtxr y'V1.
+		by rewrite -/E1 (f_morph _ _ x'V1 y'V1).
+	+ move=> /[dup] /[dup] /edge_vtxl + /edge_vtxr.
+		rewrite -/V1 -/V2 -f_bij.
+		case/imfsetP=> /= x' x'V1 -> /imfsetP [/= y' y'V1 ->].
+		rewrite -/E2 -f_morph // => x'G1y'.
+		by apply/edge_img_graph; exists x'; exists y'.
 Qed.
 
 Lemma gisoE: giso <-> exists f,
@@ -761,10 +794,10 @@ Lemma gisof_succ {T1 T2 : choiceType} (G1 : graph T1) (G2 : graph T2) f x:
   successors G2 (f x) = f @` (successors G1 x).
 Proof.
 case=> f_inj <- xG1; apply/fsetP=> y; rewrite in_succE; apply/idP/idP.
-- case/edge_img_graph=> x' + [y' <-] /[dup] /edge_vtxl x'G1.
+- case/edge_img_graph=> x' [y'] [+ <- /[dup] /edge_vtxl x'G1].
   by move/f_inj=> <- // ?; apply/in_imfset.
 - case/imfsetP=> /= y' xGy' ->; apply/edge_img_graph.
-  by exists x=> //; exists y'.
+  by exists x; exists y'.
 Qed.
 
 Lemma giso_regular {T1 T2 : choiceType} (G1 : graph T1) (G2 : graph T2) n :

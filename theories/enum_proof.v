@@ -194,6 +194,8 @@ Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 
 Definition computed_graph := mk_graph [fset x | x in RatG.vertex_list g] (RatG.mem_edge g).
 Hypothesis cgraph_neq0 : computed_graph != (graph0 _).
+(* TODO : Mandatory hypothesis ?*)
+Hypothesis cgraph_sym : {in (RatG.vertex_list g)&, symmetric (RatG.mem_edge g)}.
 
 Definition low_point k := if RatG.label g k is Some l then l else 0.
 
@@ -303,9 +305,10 @@ Lemma edge_target : {in vertices computed_graph &, forall x y,
 Proof.
 move=> x y; rewrite vtx_mk_graph !inE /= !RatG.vtx_mem_list=> xVc yVc.
 rewrite edge_mk_graph ?inE ?RatG.vtx_mem_list //.
-move/low_edge=> maskIxy; apply/edge_img_graph.
-exists (low_lexibasis xVc)=> //; exists (low_lexibasis yVc)=> //.
-by rewrite edge_mk_graph // ?inE.
+move=> or_edge; apply/edge_img_graph.
+exists (low_lexibasis xVc); exists (low_lexibasis yVc); split=> //=.
+rewrite edge_mk_graph ?inE //=; apply/orP.
+case/orP: or_edge; [left|right]; exact:low_edge.
 Qed.
 
 Lemma regular_computed : regular computed_graph n.
@@ -314,11 +317,13 @@ move=> x; rewrite vtx_mk_graph inE RatG.vtx_mem_list => xVc.
 case/RatG.vtx_memE : (xVc) => e x_find_e.
 move/RatG.vertex_allP : g_struct => /(_ x e x_find_e).
 case/and4P => _ _ _; rewrite RatG.nb_neighbours_list //.
-move/eqP/Some_inj => <-; rewrite succ_mk_graph ?inE ?RatG.vtx_mem_list //=.
-move/perm_size: (RatG.neighbour_listE g x) => ->.
-rewrite card_imfset //= !size_filter; apply/permP.
-apply/(perm_trans (enum_imfset _ _))=> //=.
-by rewrite map_id undup_id ?RatG.uniq_vtx_list ?perm_refl.
+move/eqP/Some_inj => <-; rewrite succC_mk_graph ?inE ?RatG.vtx_mem_list //=.
+- move/perm_size: (RatG.neighbour_listE g x) => ->.
+  rewrite card_imfset //= !size_filter /=; apply/permP.
+  apply/(perm_trans (enum_imfset _ _))=> //=.
+  by rewrite map_id undup_id ?RatG.uniq_vtx_list ?perm_refl.
+- move=> v w /imfsetP /= [v' v'_vtx ->] /imfsetP [/= w' w'_vtx ->].
+  by rewrite cgraph_sym.
 Qed.
 
 Lemma low_succE : {in vertices computed_graph, forall x,

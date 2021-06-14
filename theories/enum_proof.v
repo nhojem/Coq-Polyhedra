@@ -24,21 +24,22 @@ Definition create_perturbation (b : R) (k : 'I_m) : 'rV_(m.+1) :=
 Definition perturbation_seq : seq plrel :=
   map
   (fun x: lrel[R]_n * 'I_m => (x.1.1^T , create_perturbation x.1.2 x.2))
-  (zip base (ord_enum m)).
+  (zip base (enum  'I_m)).
 
 Lemma size_pert_: size perturbation_seq == m.
-Proof.
-rewrite size_map size_zip size_tuple.
-suff ->: (size (ord_enum m)) = m by rewrite minnn.
-rewrite size_pmap_sub -[RHS](size_iota 0).
-apply/eqP; rewrite -all_count; apply/allP=> i.
-by rewrite mem_iota; case/andP=> _; rewrite add0n.
-Qed.
+Proof. by rewrite size_map size_zip size_tuple size_enum_ord minnn. Qed.
 
 Definition perturbation := Tuple size_pert_.
 
 Lemma size_pert : size perturbation = m.
 Proof. apply/eqP/size_pert_. Qed.
+
+Lemma nth_pert (i : 'I_m) : perturbation`_ i = ((base`_ i).1^T , (row_mx ((const_mx (base`_ i).2) : 'M_(1,1)) (- delta_mx 0 i))).
+Proof.
+rewrite (nth_map (lrel0, i)) /= ?size_zip ?size_enum_ord ?size_tuple ?minnn //.
+rewrite !nth_zip ?size_enum_ord ?size_tuple //=; congr pair.
+by rewrite nth_ord_enum.
+Qed.
 
 End Perturbation.
 
@@ -250,9 +251,31 @@ Definition col_mask :=
   [seq (mask_matrix target_Po km) *m (col j (low_point km)) != 0 |
   j <- behead (enum 'I_m.+1)].
 
+Lemma col'_mul {R : realFieldType} {p q r : nat} (M : 'M[R]_(p,q)) (N : 'M[R]_(q,r)) j: col' j (M *m N) = M *m (col' j N).
+Proof.
+by rewrite !col'Esub mulmx_colsub.
+Qed.
+
+Lemma col_maskP : (mask_matrix target_Po km) *m colsub ((lift 0) \o fmask_nth km) (low_point km) = 1%:M.
+Proof.
+rewrite mulmx_colsub low_mtx_affP colsub_comp.
+rewrite !mxE -map_mask (nth_map 0) ?size_mask ?card_fmask ?size_fmask ?size_pert //.
+rewrite -map_mask (nth_map (lrel0, (fmask_nth km i))) ?size_mask ?card_fmask ?size_fmask ?size_zip ?size_enum_ord ?size_tuple ?minnn //=.
+rewrite /create_perturbation.
+Search _ row_mx.
+
+
+
+Lemma col_maskP j : (mask_matrix target_Po km) *m (col (fmask_nth km j) (col' 0 (low_point km))) = delta_mx j 0.
+Proof.
+rewrite -col_mul.
+Search _ (col').
+
 Lemma col_mask_card: ##| col_mask | == n.
 Proof.
+rewrite /col_mask.
 Admitted.
+
 
 Definition fcol_mask := CMask col_mask_card.
 
@@ -338,18 +361,6 @@ move=> x xV1; apply/eqP; rewrite eqEfcard; apply/andP; split.
     rewrite vtx_img_graph vtx_mk_graph; apply/imfsetP.
     by exists (low_lexibasis xV1); rewrite ?inE.
 Qed.
-
-(*Lemma foo_succE:
-  {in V1, forall x, f @` (successors G1 x) = (successors G2 (f x))}.
-Proof.
-move=> x xV1; apply/eqP; rewrite eqEfcard; apply/andP; split.
-- apply/fsubsetP=> y /imfsetP [y' /= y'succ ->].
-  move/fsubsetP: (sub_succ xV1) => /(_ y' y'succ) y'V1.
-  rewrite in_succE; exact: f_morph.
-- move/fsubsetP: f_leq => imf.
-  rewrite card_in_imfset ?G1_regular ?G2_regular ?imf ?in_imfset //=.
-  move/fsubsetP: (sub_succ xV1) => succ1 p q /succ1 pV1 /succ1 qV1; exact: f_inj.
-Qed.*)
 
 End StructCons.
 

@@ -18,23 +18,18 @@ Context (n m: nat) (R: realFieldType) (base : m.-tuple lrel[R]_n).
 Definition plrel := ('rV[R]_n * 'rV[R]_(m.+1))%type.
 
 Definition create_perturbation (b : R) (k : 'I_m) : 'rV_(m.+1) :=
-  @row_mx _ _ 1 m (const_mx b) (- delta_mx 0 k).
-
+  @row_mx _ _ 1 m b%:M (- delta_mx 0 k).
 
 Definition perturbation_seq : seq plrel :=
   map
   (fun x: lrel[R]_n * 'I_m => (x.1.1^T , create_perturbation x.1.2 x.2))
   (zip base (enum  'I_m)).
 
-Lemma size_pert_: size perturbation_seq == m.
+Program Definition perturbation := @Tuple m _ perturbation_seq _.
+Next Obligation.
 Proof. by rewrite size_map size_zip size_tuple size_enum_ord minnn. Qed.
 
-Definition perturbation := Tuple size_pert_.
-
-Lemma size_pert : size perturbation = m.
-Proof. apply/eqP/size_pert_. Qed.
-
-Lemma nth_pert (i : 'I_m) : perturbation`_ i = ((base`_ i).1^T , (row_mx ((const_mx (base`_ i).2) : 'M_(1,1)) (- delta_mx 0 i))).
+Lemma nth_pert (i : 'I_m) : perturbation`_ i = ((base`_ i).1^T , (row_mx (base`_ i).2%:M (- delta_mx 0 i))).
 Proof.
 rewrite (nth_map (lrel0, i)) /= ?size_zip ?size_enum_ord ?size_tuple ?minnn //.
 rewrite !nth_zip ?size_enum_ord ?size_tuple //=; congr pair.
@@ -47,6 +42,16 @@ Section LexiBasis.
 
 Context (R : realFieldType) (n m : nat).
 Context (base : m.-tuple (plrel n m R)).
+
+(* TODO:
+ * - change A / b to lhs / rhs
+ * - introduce lhs_mat / rhs_mat
+ * - define mask_matrix (now mask_lhs) and mask_aff (now mask_rhs) using rowsub of lhs/rhs_mat by fmask_nth
+ * - prove colsub (lift 0) (rhs_mat perturbation base) = 1%:M *)
+
+Lemma mxsub_scalar_mx (p q : nat) (f : 'I_p -> 'I_q) (a : R) :
+  injective f -> mxsub f f (a%:M) = a%:M.
+Proof. by move=> f_inj; apply/matrixP=> i j; rewrite !mxE (inj_eq f_inj). Qed.
 
 Definition A_base := unzip1 base.
 Definition b_base := unzip2 base.
@@ -190,9 +195,11 @@ Context (g : RatG.t).
 Definition target_Po := perturbation base.
 Definition target_graph := lexi_mask_graph target_Po.
 
+(* TODO: add the nonemptiness test of g in struct_consistent *)
 Hypothesis g_struct : RatA.struct_consistent n target_Po g.
 Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 
+(* TODO: remove the next 2 hypotheses *)
 Definition computed_graph := mk_graph [fset x | x in RatG.vertex_list g] (RatG.mem_edge g).
 Hypothesis cgraph_neq0 : computed_graph != (graph0 _).
 (* TODO : Mandatory hypothesis ?*)
@@ -209,7 +216,7 @@ Lemma mem_low_size: size k == m.
 Proof.
 move/RatG.vertex_allP: g_struct=> H.
 case/RatG.vtx_memE: k_mem=> e /H/and4P [].
-by rewrite size_pert.
+by rewrite size_tuple.
 Qed.
 
 Definition kt := Tuple mem_low_size.
@@ -258,24 +265,24 @@ Qed.
 
 Lemma col_maskP : (mask_matrix target_Po km) *m colsub ((lift 0) \o fmask_nth km) (low_point km) = 1%:M.
 Proof.
-rewrite mulmx_colsub low_mtx_affP colsub_comp.
-rewrite !mxE -map_mask (nth_map 0) ?size_mask ?card_fmask ?size_fmask ?size_pert //.
+(*rewrite mulmx_colsub low_mtx_affP colsub_comp.
+apply/matrixP=> i j.
+rewrite !mxE -map_mask (nth_map 0) ?size_mask ?card_fmask ?size_fmask ?size_tuple //.
 rewrite -map_mask (nth_map (lrel0, (fmask_nth km i))) ?size_mask ?card_fmask ?size_fmask ?size_zip ?size_enum_ord ?size_tuple ?minnn //=.
 rewrite /create_perturbation.
-Search _ row_mx.
+Search _ row_mx.*)
+  Admitted.
 
-
-
+(*
 Lemma col_maskP j : (mask_matrix target_Po km) *m (col (fmask_nth km j) (col' 0 (low_point km))) = delta_mx j 0.
 Proof.
 rewrite -col_mul.
-Search _ (col').
+Search _ (col').*)
 
 Lemma col_mask_card: ##| col_mask | == n.
 Proof.
 rewrite /col_mask.
 Admitted.
-
 
 Definition fcol_mask := CMask col_mask_card.
 
@@ -305,7 +312,7 @@ Proof. by rewrite low_lexipoint mem_low_sat. Qed.
 Definition low_lexibasis := Lexb low_presat.
 
 Lemma mem_foo: k \in vertices target_graph.
-Proof. 
+Proof.
 rewrite vtx_img_graph vtx_mk_graph; apply/imfsetP.
 by exists low_lexibasis; rewrite ?in_imfset.
 Qed.
@@ -313,6 +320,13 @@ Qed.
 End LowPointIng.
 
 Section StructCons.
+
+(*
+   RatG.mem_vertex g =1 (vertices target_graph)
+/\   RatG.mem_edge g =2 (edges target_graph)
+*)
+
+
 
 Lemma low_edge x y: RatG.mem_edge g x y -> ##| maskI x y| == (n - 1)%nat.
 Proof.
@@ -334,6 +348,7 @@ rewrite edge_mk_graph ?inE //=; apply/orP.
 case/orP: or_edge; [left|right]; exact:low_edge.
 Qed.
 
+(* TODO: replace by {in vertices computed_graph, forall x, #|` successors computed_graph x | >= n} *)
 Lemma regular_computed : regular computed_graph n.
 Proof.
 move=> x; rewrite vtx_mk_graph inE RatG.vtx_mem_list => xVc.
@@ -368,7 +383,7 @@ Lemma foo: giso computed_graph target_graph.
 Proof.
 exists id; apply: bar => //.
 - apply/fsubsetP=> x; rewrite in_fsetE /= vtx_mk_graph in_fsetE /= RatG.vtx_mem_list; exact: mem_foo.
-- exact: edge_target. 
+- exact: edge_target.
 - exact/(giso_connected (lexi_giso _))/lexi_connected.
 - by move=> x xVc; rewrite low_succE //; apply/fsetP=> y; rewrite inE.
 Qed.

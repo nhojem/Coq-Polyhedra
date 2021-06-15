@@ -43,7 +43,7 @@ apply/(iffP idP).
 - move=> H; apply/forallP=> x; exact/H/valP.
 Qed.
 
-Definition sym fs :=
+(* Definition sym fs :=
   [forall x : finsupp fs,
       [forall y : finsupp fs,
           val y \in (odflt fset0 (fs (val x)))
@@ -58,11 +58,11 @@ apply/(iffP idP).
 - move/forallP => Hx x + xfs; move/forallP: (Hx [` xfs])=> Hy y yfs.
 	by move/eqP: (Hy [`yfs]).
 - move=> H; apply/forallP => x; apply/forallP=> y; apply/eqP/H; exact/valP.
-Qed.
+Qed. *)
 
 Record graph :=
   Graph { fs : {fsfun T -> option {fset T} with None};
-          _  : codom_sub fs && sym fs }.
+          _  : codom_sub fs }.
 
 Coercion graph_val (G : graph) := let: Graph g _ := G in g.
 

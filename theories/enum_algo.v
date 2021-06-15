@@ -53,7 +53,8 @@ Definition vertex_consistent :=
 Definition neighbour_condition I :=
   [&& size I == size Po,
       ##|I|  == n,
-      AlgoGraph.neighbour_all G (fun J => ##|maskI I J| == (n-1)%nat) I
+      AlgoGraph.neighbour_all G
+      (fun J => ((##|maskI I J| == (n-1)%nat) && (AlgoGraph.mem_vertex G J))) I
     & AlgoGraph.nb_neighbours G I == Some n].
 
 Definition struct_consistent :=
@@ -503,7 +504,7 @@ case E: (RatG.mem_vertex G1 I).
   have perm_nei: perm_eq (RatG.neighbour_list G1 I) (BQG.neighbour_list G2 I).
   + apply/uniq_perm; rewrite ?RatG.uniq_neighbour_list ?BQG.uniq_neighbour_list //.
     by move=> x; rewrite -RatG.edge_mem_list -BQG.edge_mem_list eqedg.
-  congr (_ && _); first exact/perm_all.
+  congr (_ && _). first exact/perm_all.
   + rewrite (RatG.nb_neighbours_list) ?(BQG.nb_neighbours_list) ?eqvtx //.
     by rewrite (perm_size perm_nei).
   + rewrite RatG.neighbour_allF ?BQG.neighbour_allF -?eqvtx ?E //=.

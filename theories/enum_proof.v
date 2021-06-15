@@ -330,11 +330,13 @@ Section StructCons.
 
 Lemma low_edge x y: RatG.mem_edge g x y -> ##| maskI x y| == (n - 1)%nat.
 Proof.
-move/RatG.vertex_allP: g_struct => vtx_cond; rewrite RatG.edge_mem_list => y_nei_x.
-have: RatG.neighbour_list g x != [::] by move: y_nei_x; case: (RatG.neighbour_list g x).
+move/RatG.vertex_allP: g_struct => vtx_cond.
+rewrite RatG.edge_mem_list => y_nei_x.
+have: RatG.neighbour_list g x != [::] by
+  move: y_nei_x; case: (RatG.neighbour_list g x).
 move/RatG.neighbour_list_mem => /[dup] xg /RatG.vtx_memE [e] /vtx_cond.
 case/and4P=> _ _ /RatG.neighbour_allP.
-by move/(_ xg _ y_nei_x).
+by case/(_ xg _ y_nei_x)/andP.
 Qed.
 
 Lemma edge_target : {in vertices computed_graph &, forall x y,
@@ -342,26 +344,27 @@ Lemma edge_target : {in vertices computed_graph &, forall x y,
 Proof.
 move=> x y; rewrite vtx_mk_graph !inE /= !RatG.vtx_mem_list=> xVc yVc.
 rewrite edge_mk_graph ?inE ?RatG.vtx_mem_list //.
-move=> or_edge; apply/edge_img_graph.
+move=> xgy; apply/edge_img_graph.
 exists (low_lexibasis xVc); exists (low_lexibasis yVc); split=> //=.
-rewrite edge_mk_graph ?inE //=; apply/orP.
-case/orP: or_edge; [left|right]; exact:low_edge.
+rewrite edge_mk_graph ?inE //=.
+exact:low_edge.
 Qed.
 
-(* TODO: replace by {in vertices computed_graph, forall x, #|` successors computed_graph x | >= n} *)
-Lemma regular_computed : regular computed_graph n.
+Lemma computed_succ_card :
+  {in vertices computed_graph, forall x, (n <= #|` successors computed_graph x |)%nat}.
 Proof.
-move=> x; rewrite vtx_mk_graph inE RatG.vtx_mem_list => xVc.
-case/RatG.vtx_memE : (xVc) => e x_find_e.
-move/RatG.vertex_allP : g_struct => /(_ x e x_find_e).
-case/and4P => _ _ _; rewrite RatG.nb_neighbours_list //.
-move/eqP/Some_inj => <-; rewrite succC_mk_graph ?inE ?RatG.vtx_mem_list //=.
-- move/perm_size: (RatG.neighbour_listE g x) => ->.
-  rewrite card_imfset //= !size_filter /=; apply/permP.
-  apply/(perm_trans (enum_imfset _ _))=> //=.
-  by rewrite map_id undup_id ?RatG.uniq_vtx_list ?perm_refl.
-- move=> v w /imfsetP /= [v' v'_vtx ->] /imfsetP [/= w' w'_vtx ->].
-  by rewrite cgraph_sym.
+move=> x; rewrite vtx_mk_graph inE /= RatG.vtx_mem_list=> /[dup] xg.
+rewrite RatG.vtx_memE => -[e xg_is_e].
+move/RatG.vertex_allP: g_struct => /(_ _ _ xg_is_e).
+case/and4P=> _ _.
+rewrite (RatG.neighbour_all_eq _ xg (perm_refl _)).
+move/allP=> h_nei.
+rewrite succ_mk_graph ?inE ?RatG.vtx_mem_list //.
+rewrite RatG.nb_neighbours_list // => /eqP/Some_inj <-.
+rewrite card_imfset //=.
+apply: uniq_leq_size; first exact: RatG.uniq_neighbour_list.
+move=> y /[dup] /h_nei /andP [_ yg]; rewrite -RatG.edge_mem_list => xgy.
+by rewrite mem_filter inE /= xgy RatG.vtx_mem_list yg.
 Qed.
 
 Lemma low_succE : {in vertices computed_graph, forall x,
@@ -370,8 +373,8 @@ Proof.
 move=> x xV1; apply/eqP; rewrite eqEfcard; apply/andP; split.
 - apply/fsubsetP=> y; rewrite !in_succE=> /[dup] /edge_vtxr yV1.
   exact:(edge_target).
-- rewrite (regular_computed xV1) (giso_regular (n:=n) (lexi_giso _)) //.
-  + exact/lexi_regular.
+- rewrite (giso_regular (n:=n) (lexi_giso _)) ?computed_succ_card //.
+  + exact: lexi_regular.
   + rewrite vtx_mk_graph inE RatG.vtx_mem_list in xV1.
     rewrite vtx_img_graph vtx_mk_graph; apply/imfsetP.
     by exists (low_lexibasis xV1); rewrite ?inE.

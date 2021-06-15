@@ -97,11 +97,7 @@ Section GraphBasics.
 Context (T : choiceType).
 
 Program Definition graph0 : graph T := @Graph _ [fsfun] _.
-Next Obligation.
-apply/andP; split.
-- apply/codom_subP => x; by rewrite finsupp0 inE.
-- apply/symP => x y; by rewrite finsupp0 inE.
-Qed.
+Next Obligation. apply/codom_subP => x; by rewrite finsupp0 inE. Qed.
 
 (*Definition add_vertex (g : graph T) (v : T) :=
   Graph g.[v <-? Some fset0].
@@ -124,18 +120,14 @@ Definition edges (g : graph T) : rel T :=
 
 (* Introduce notation *)
 (* create_graph -> mk_graph *)
+
 Program Definition mk_graph (V : {fset T}) (E : rel T) : graph T :=
-  @Graph _ [fsfun v in V => Some [fset w | w in V & (E v w || E w v)] | None] _.
+  @Graph _ [fsfun v in V => Some [fset w | w in V & E v w] | None] _.
 Next Obligation.
-apply/andP; split.
-- apply/codom_subP=> x x_in.
-  rewrite fsfunE ifT /=; last by move: x_in; apply/fsubsetP/finsupp_sub.
-  apply/fsubsetP=> y; rewrite !inE /= =>/andP [y_in] _.
-  by rewrite mem_finsupp fsfunE y_in.
-- apply/symP=> x y x_in y_in.
-  have x_in_V: x \in V by move: x_in; apply/fsubsetP/finsupp_sub.
-  have y_in_V: y \in V by move: y_in; apply/fsubsetP/finsupp_sub.
-  by rewrite !fsfunE !ifT //= !inE orbC x_in_V y_in_V.
+apply/codom_subP=> x x_in.
+rewrite fsfunE ifT /=; last by move: x_in; apply/fsubsetP/finsupp_sub.
+apply/fsubsetP=> y; rewrite !inE /= =>/andP [y_in] _.
+by rewrite mem_finsupp fsfunE y_in.
 Qed.
 
 Section Lemmas.
@@ -191,20 +183,13 @@ Lemma edge_vtxr (G : graph T) (x y : T) :
 Proof.
 move/[dup] => /edge_vtxl.
 case: G=> f; rewrite /edges /vertices /successors /=.
-case/andP=> /codom_subP /(_ x)=> codom_f _ /codom_f /fsubsetP; exact.
-Qed.
-
-Lemma edgeC (G : graph T) : {in (vertices G) &, symmetric (edges G)}.
-Proof.
-move=> v w; case: G=> f; rewrite /edges /vertices /successors /=.
-case/andP=>  _ /symP symH vG wG; exact/symH.
+move/codom_subP => /(_ x) codom_f /codom_f /fsubsetP; exact.
 Qed.
 
 
 Lemma sub_succ (G : graph T) (x : T) :
   successors G x `<=` vertices G.
 Proof. apply/fsubsetP=> y; rewrite in_succE; exact: edge_vtxr. Qed.
-
 
 Section MkGraph.
 Context (V : {fset T}) (E : rel T).
@@ -216,30 +201,19 @@ apply/eqP; rewrite eqEfsubset; apply/andP; split.
 - by apply/fsubsetP=> x; rewrite mem_finsupp fsfunE => ->.
 Qed.
 
-Lemma edge_mk_graph : {in V&, forall x y, edges (mk_graph V E) x y = (E x y || E y x)}.
+Lemma edge_mk_graph : {in V&, forall x y, edges (mk_graph V E) x y = E x y}.
 Proof.
 by move=> x y xV yV; rewrite -in_succE /successors /= fsfunE xV /= !inE yV.
 Qed.
 
-Lemma edgeC_mk_graph : {in V&, symmetric E} ->
-  {in V&, forall x y, edges (mk_graph V E) x y = E x y}.
-Proof. by move=> symE x y xV yV; rewrite edge_mk_graph // symE // orbb. Qed.
-
 Lemma succ_mk_graph : {in V, forall x,
-  successors (mk_graph V E) x = [fset y in V | E x y || E y x]}.
+  successors (mk_graph V E) x = [fset y in V | E x y]}.
 Proof.
 move=> x xV; apply/fsetP=> y; rewrite in_succE !inE /=.
 apply/idP/idP.
 - move=> /[dup] /edge_vtxr; rewrite vtx_mk_graph=> yV.
   by rewrite edge_mk_graph // yV.
 - by case/andP => /= yV xEy; rewrite edge_mk_graph.
-Qed.
-
-Lemma succC_mk_graph : {in V&, symmetric E} ->
-{in V, forall x, successors (mk_graph V E) x = [fset y in V | E x y]}.
-Proof.
-move=> symE x xV; rewrite succ_mk_graph //; apply/fsetP=> y.
-by rewrite !inE /=; apply/andb_id2l=> yV; rewrite symE // orbb.
 Qed.
 
 End MkGraph.
@@ -449,9 +423,10 @@ Definition regular := forall v : T, v \in vertices G -> #|` successors G v| = n.
 End Regular.
 
 
-Section Undirected.
+(* Section Undirected.
 Context {T : choiceType} (G : graph T).
 Let V := vertices G.
+Definition 
 
 
 Lemma undi_succE : {in V&, forall x y, (x \in successors G y) = (y \in successors G x)}.
@@ -466,7 +441,7 @@ rewrite undi_succE // in_succE in y0_succ.
 move: (has_path_edge y0_succ) (S_path _ Sx0); exact: has_path_trans.
 Qed.
 
-End Undirected.
+End Undirected. *)
 
 (* TODO: sous-graphe *)
 (* TODO: image d'un graphe *)
@@ -490,15 +465,11 @@ Proof.
 apply/(iffP idP).
 - move/[dup]/[dup] => /edge_vtxl + /edge_vtxr.
   rewrite vtx_img_graph=> xV2 yV2; rewrite edge_mk_graph //=.
-	case/orP.
 	+ case/existsP=> x'; case/existsP=> y'; case/and3P => /eqP <- /eqP <- ?.
 		by exists (fsval x'); exists (fsval y'); split.
-	+ case/existsP=> x'; case/existsP=> y'; case/and3P => /eqP <- /eqP <- ?.
-		exists (fsval y'); exists (fsval x'); split=> //.
-		by rewrite /E; rewrite edgeC ?fsvalP.
 - case=> x' [y'] [<- <- /[dup] /[dup] /edge_vtxl x'V /edge_vtxr y'V x'Gy'].
 	rewrite edge_mk_graph ?in_imfset //=.
-	apply/orP; left; apply/existsP; exists [` x'V]; apply/existsP; exists [` y'V].
+	apply/existsP; exists [` x'V]; apply/existsP; exists [` y'V].
 	by rewrite !eq_refl x'Gy'.
 Qed.
 

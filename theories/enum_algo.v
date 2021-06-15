@@ -489,28 +489,30 @@ Qed.
 Lemma eqv_struct_consistent : eqv_graph -> r_Po RatPo BQPo ->
   RatA.struct_consistent n RatPo G1 = BQA.struct_consistent n BQPo G2.
 Proof.
-move=> [eqvtx eqedg] rPo; rewrite /RatA.struct_consistent /BQA.struct_consistent.
+move=> [eqvtx eqedg] rPo.
+rewrite /RatA.struct_consistent /BQA.struct_consistent.
 rewrite (RatG.vertex_all_eq _ (RatG.adj_listP G1)).
 rewrite (BQG.vertex_all_eq _ (BQG.adj_listP G2)) -!all_map.
 rewrite (@eq_all _ (RatA.neighbour_condition n RatPo G1) (BQA.neighbour_condition n BQPo G2)).
   exact/perm_all/perm_eqv_graph.
-move=> I; rewrite /RatA.neighbour_condition /BQA.neighbour_condition.
-congr andb; first by case/andP: rPo=> /eqP ->.
+move=> I; congr andb; first by case/andP: rPo=> /eqP ->.
 congr andb.
-case E: (RatG.mem_vertex G1 I).
-- rewrite (@RatG.neighbour_all_eq _ _ _ (RatG.neighbour_list G1 I)) //.
-  rewrite eqvtx in E.
-  rewrite (@BQG.neighbour_all_eq _ _ _ (BQG.neighbour_list G2 I)) //.
-  have perm_nei: perm_eq (RatG.neighbour_list G1 I) (BQG.neighbour_list G2 I).
-  + apply/uniq_perm; rewrite ?RatG.uniq_neighbour_list ?BQG.uniq_neighbour_list //.
-    by move=> x; rewrite -RatG.edge_mem_list -BQG.edge_mem_list eqedg.
-  congr (_ && _). first exact/perm_all.
-  + rewrite (RatG.nb_neighbours_list) ?(BQG.nb_neighbours_list) ?eqvtx //.
-    by rewrite (perm_size perm_nei).
-  + rewrite RatG.neighbour_allF ?BQG.neighbour_allF -?eqvtx ?E //=.
-    by rewrite RatG.nb_neighboursF ?BQG.nb_neighboursF -?eqvtx ?E.
-Qed.
+have perm_nei: perm_eq (RatG.neighbour_list G1 I) (BQG.neighbour_list G2 I).
++ apply/uniq_perm; rewrite ?RatG.uniq_neighbour_list ?BQG.uniq_neighbour_list //.
+  by move=> x; rewrite -RatG.edge_mem_list -BQG.edge_mem_list eqedg.
 
+case /boolP: (RatG.mem_vertex G1 I).
+- move/[dup]/[dup] => vtxI1.
+  move/(@RatG.neighbour_all_eq _)=> /(_ _ _ (perm_refl _)) ->.  
+  rewrite eqvtx=> /(BQG.neighbour_all_eq); move/(_ _ _ perm_nei)=> ->.
+  congr (_ && _); first apply: eq_all=> J; rewrite ?eqvtx //.
+  rewrite RatG.nb_neighbours_list ?BQG.nb_neighbours_list -?eqvtx //.
+  by rewrite (perm_size perm_nei).
+- move/[dup]/[dup] => vtxF1.
+  move/RatG.neighbour_allF=> ->; rewrite eqvtx.
+  move/BQG.neighbour_allF=> -> /=.
+  by rewrite RatG.nb_neighboursF ?BQG.nb_neighboursF -?eqvtx.
+Qed.
 End GraphStructure.
 
 Section GraphData.

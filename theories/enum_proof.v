@@ -53,12 +53,12 @@ Lemma mxsub_scalar_mx (p q : nat) (f : 'I_p -> 'I_q) (a : R) :
   injective f -> mxsub f f (a%:M) = a%:M.
 Proof. by move=> f_inj; apply/matrixP=> i j; rewrite !mxE (inj_eq f_inj). Qed.
 
-Definition A_base := unzip1 base.
-Definition b_base := unzip2 base.
+Definition lhs_base := unzip1 base.
+Definition rhs_base := unzip2 base.
 
 Record lexi_prebasis := Lexi {
   s :> m.-choose n;
-  _ : basis_of fullv (mask s A_base);
+  _ : basis_of fullv (mask s lhs_base);
   }.
 
 Canonical lexipre_subType := Eval hnf in [subType for s].
@@ -72,18 +72,21 @@ Canonical lexipre_subCountType := [subCountType of lexi_prebasis].
 Definition lexipre_finMixin := [finMixin of lexi_prebasis by <:].
 Canonical lexipre_finType := FinType _ lexipre_finMixin.
 
-Lemma lexi_vbasis (L : lexi_prebasis) : basis_of fullv (mask L A_base).
+Lemma lexi_vbasis (L : lexi_prebasis) : basis_of fullv (mask L lhs_base).
 Proof. by case: L => ? /=. Qed.
 
-Definition mask_matrix (L : m.-choose n) : 'M_n :=
-  \matrix_(i < n) ((mask L A_base)`_i).
+Definition lhs_mat := \matrix_(i < m) lhs_base`_i.
+Definition rhs_mat := \matrix_(i < m) rhs_base`_i.
 
-Definition mask_aff (L :  m.-choose n) : 'M_(n, m.+1) :=
-  \matrix_(i < n) (mask L b_base)`_i.
+Definition mask_lhs (L : m.-choose n) : 'M_n :=
+  rowsub (fmask_nth L) lhs_mat.
+
+Definition mask_rhs (L :  m.-choose n) : 'M_(n, m.+1) :=
+  rowsub (fmask_nth L) rhs_mat.
 
 Lemma mask_matrixP (L : m.-choose n) (i : 'I_n):
-  row i (mask_matrix L) = (mask L A_base)`_i.
-Proof. by rewrite rowK. Qed.
+  row i (mask_lhs L) = (mask L lhs_base)`_i.
+Proof. rewrite row_rowsub rowK.
 
 Lemma mask_affP (L : m.-choose n) (i : 'I_n):
   row i (mask_aff L) = (mask L b_base)`_i.

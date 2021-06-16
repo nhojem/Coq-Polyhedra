@@ -138,6 +138,14 @@ case: m.
 - by move=> ?????? /(_ ord0).
 Qed.
 
+Lemma fmask_nth_inj (mas : cmask) : injective (fmask_nth mas).
+Proof.
+move=> x y /(congr1 val) /=.
+rewrite /fmask_nth_ ; move/eqP; rewrite nth_uniq ?size_map ?size_index_list //.
+- move/eqP; exact: val_inj.
+- by rewrite map_inj_uniq; last exact: val_inj; rewrite mask_uniq ?enum_uniq.
+Qed.
+
 
 End ChooseMask.
 

@@ -84,16 +84,24 @@ Definition mask_lhs (L : m.-choose n) : 'M_n :=
 Definition mask_rhs (L :  m.-choose n) : 'M_(n, m.+1) :=
   rowsub (fmask_nth L) rhs_mat.
 
-Lemma mask_matrixP (L : m.-choose n) (i : 'I_n):
+Lemma mask_lhsE (L : m.-choose n) (i : 'I_n) :
   row i (mask_lhs L) = (mask L lhs_base)`_i.
-Proof. rewrite row_rowsub rowK.
+Proof. by rewrite row_rowsub rowK fmask_nthP. Qed.
 
-Lemma mask_affP (L : m.-choose n) (i : 'I_n):
-  row i (mask_aff L) = (mask L b_base)`_i.
-Proof. by rewrite rowK. Qed.
+Lemma mask_rhsE (L : m.-choose n) (i : 'I_n) :
+  row i (mask_rhs L) = (mask L rhs_base)`_i.
+Proof. by rewrite row_rowsub rowK fmask_nthP. Qed.
+
+Lemma mask_baseE (L : m.-choose n) (i : 'I_n) :
+  (row i (mask_lhs L), row i (mask_rhs L)) = (mask L base)`_i.
+Proof.
+rewrite mask_lhsE mask_rhsE -!map_mask.
+rewrite !(nth_map 0) ?size_mask ?card_fmask ?size_fmask ?size_tuple //.
+by case: ((mask L base)`_i).
+Qed.
 
 Lemma mtx_vbasisE (L : m.-choose n) :
-  reflect (basis_of fullv (mask L A_base)) (mask_matrix L \in unitmx).
+  reflect (basis_of fullv (mask L lhs_base)) (mask_lhs L \in unitmx).
 Proof.
 (*apply/(iffP idP).
 - rewrite -row_full_unit basisEdim size_mask ?size_tuple //.
@@ -102,11 +110,11 @@ Proof.
   Search _ row_full. *)
 Admitted.
 
-Lemma lexi_matrix_inv (L : lexi_prebasis) : (mask_matrix L) \in unitmx.
+Lemma lexi_matrix_inv (L : lexi_prebasis) : (mask_lhs L) \in unitmx.
 Proof. exact/mtx_vbasisE/lexi_vbasis. Qed.
 
 Definition lexi_point (L : lexi_prebasis) : 'M_(n, m.+1) :=
-  (invmx (mask_matrix L)) *m (mask_aff L).
+  (invmx (mask_lhs L)) *m (mask_rhs L).
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -121,13 +129,14 @@ Definition eq_mask (mas : bitseq) (x : 'M[R]_(n, m.+1)) :=
 
 Lemma prelexi_mask_point (L : m.-choose n) x :
   eq_mask L x ->
-  (mask_matrix L) *m x = (mask_aff L).
+  (mask_lhs L) *m x = (mask_rhs L).
 Proof.
 move=> /allP /= eqx.
 apply/row_matrixP => i.
-rewrite row_mul !rowK -!map_mask.
-rewrite !(nth_map 0) ?size_mask ?size_tuple ?card_fmask //=.
-by apply/eqP/eqx/mem_nth; rewrite ?size_mask ?size_tuple ?card_fmask.
+rewrite row_mul mask_lhsE mask_rhsE -!map_mask.
+rewrite !(nth_map 0) ?size_mask ?card_fmask ?size_fmask ?size_tuple //.
+apply/eqP/eqx/mem_nth.
+by rewrite ?size_mask ?card_fmask ?size_fmask ?size_tuple.
 Qed.
 
 Record lexi_basis := Lexb
@@ -154,13 +163,10 @@ Lemma lexi_eq (L : lexi_basis) : eq_mask L (lexi_point L).
 Proof.
 apply/allP => /= e /nthP /= /(_ 0) [i].
 rewrite size_mask ?size_tuple // card_fmask=> i_ord <-.
-rewrite /lexi_point /sat_eq mulmxA.
-have ->: ((mask L base)`_i).1 = row (Ordinal i_ord) (mask_matrix L) by
-  rewrite mask_matrixP -map_mask (nth_map 0) ?size_mask ?size_tuple ?card_fmask.
-rewrite -row_mul mulmxV ?lexi_matrix_inv // -row_mul mul1mx.
-by rewrite mask_affP -map_mask (nth_map 0) ?size_mask ?size_tuple ?card_fmask.
+set i' := Ordinal i_ord.
+rewrite -(mask_baseE _ i') /lexi_point /sat_eq mulmxA /=.
+by rewrite -row_mul mulmxV ?lexi_matrix_inv // -row_mul mul1mx.
 Qed.
-
 
 Definition lexi_graph :=
   mk_graph [fset L | L : lexi_basis]
@@ -206,7 +212,7 @@ Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 Definition computed_graph := mk_graph [fset x | x in RatG.vertex_list g] (RatG.mem_edge g).
 Hypothesis cgraph_neq0 : computed_graph != (graph0 _).
 (* TODO : Mandatory hypothesis ?*)
-Hypothesis cgraph_sym : {in (RatG.vertex_list g)&, symmetric (RatG.mem_edge g)}.
+(*Hypothesis cgraph_sym : {in (RatG.vertex_list g)&, symmetric (RatG.mem_edge g)}. *)
 
 Definition low_point k := if RatG.label g k is Some l then l else 0.
 
@@ -254,27 +260,41 @@ by case/H/andP => ? _ <-.
 Qed.
 
 Lemma low_mtx_affP:
-  (mask_matrix target_Po km) *m (low_point km) = (mask_aff target_Po km).
+  (mask_lhs target_Po km) *m (low_point km) = (mask_rhs target_Po km).
 Proof. exact/prelexi_mask_point/mem_low_mask. Qed.
 
-Definition col_mask :=
-  [seq (mask_matrix target_Po km) *m (col j (low_point km)) != 0 |
-  j <- behead (enum 'I_m.+1)].
-
-Lemma col'_mul {R : realFieldType} {p q r : nat} (M : 'M[R]_(p,q)) (N : 'M[R]_(q,r)) j: col' j (M *m N) = M *m (col' j N).
+(* Lemma col'_mul {R : realFieldType} {p q r : nat}
+  (M : 'M[R]_(p,q)) (N : 'M[R]_(q,r)) j: col' j (M *m N) = M *m (col' j N).
 Proof.
 by rewrite !col'Esub mulmx_colsub.
+Qed. *)
+
+Lemma target_Po_lift : colsub (lift 0) (rhs_mat target_Po) = -1%:M.
+Proof.
+apply/matrixP=> i j /=.
+rewrite !mxE (nth_map 0) ?size_tuple //.
+rewrite /target_Po nth_pert /= -rshift1.
+by rewrite (@row_mxEr _ 1 1) !mxE eq_refl /= eq_sym.
 Qed.
 
-Lemma col_maskP : (mask_matrix target_Po km) *m colsub ((lift 0) \o fmask_nth km) (low_point km) = 1%:M.
+Lemma col_maskP :
+  (mask_lhs target_Po km) *m colsub ((lift 0) \o fmask_nth km) (low_point km) = -1%:M.
 Proof.
+rewrite mulmx_colsub low_mtx_affP colsub_comp -mxsubcr.
+rewrite [X in colsub _ X]mxsubrc target_Po_lift -mxsubcr.
+apply/matrixP=> i j; rewrite !mxE; congr (_ *- _).
+rewrite inj_eq //; exact/fmask_nth_inj.
+Qed.
+
+Definition extr_low_point := - colsub ((lift 0) \o fmask_nth km) (low_point km).
+
+
 (*rewrite mulmx_colsub low_mtx_affP colsub_comp.
 apply/matrixP=> i j.
 rewrite !mxE -map_mask (nth_map 0) ?size_mask ?card_fmask ?size_fmask ?size_tuple //.
 rewrite -map_mask (nth_map (lrel0, (fmask_nth km i))) ?size_mask ?card_fmask ?size_fmask ?size_zip ?size_enum_ord ?size_tuple ?minnn //=.
 rewrite /create_perturbation.
 Search _ row_mx.*)
-  Admitted.
 
 (*
 Lemma col_maskP j : (mask_matrix target_Po km) *m (col (fmask_nth km j) (col' 0 (low_point km))) = delta_mx j 0.
@@ -282,7 +302,7 @@ Proof.
 rewrite -col_mul.
 Search _ (col').*)
 
-Lemma col_mask_card: ##| col_mask | == n.
+(* Lemma col_mask_card: ##| col_mask | == n.
 Proof.
 rewrite /col_mask.
 Admitted.
@@ -291,16 +311,15 @@ Definition fcol_mask := CMask col_mask_card.
 
 Program Definition extr_low_point :=
   colsub (fmask_nth fcol_mask) (col' 0 (low_point k)).
-Next Obligation. by rewrite card_ord. Defined.
+Next Obligation. by rewrite card_ord. Defined. *)
 
-Lemma extr_low_pointE : (mask_matrix target_Po km) *m extr_low_point = 1%:M.
-Proof.
-Admitted.
+Lemma extr_low_pointE : (mask_lhs target_Po km) *m extr_low_point = 1%:M.
+Proof. by rewrite mulmxN col_maskP opprK. Qed.
 
-Lemma extr_low_inv : (mask_matrix target_Po km) \in unitmx.
+Lemma extr_low_inv : (mask_lhs target_Po km) \in unitmx.
 Proof. by case/mulmx1_unit: extr_low_pointE. Qed.
 
-Lemma low_vbasis: basis_of fullv (mask km (A_base target_Po)).
+Lemma low_vbasis: basis_of fullv (mask km (lhs_base target_Po)).
 Proof. exact/mtx_vbasisE/extr_low_inv. Qed.
 
 Definition low_prebasis := Lexi low_vbasis.

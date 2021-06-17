@@ -58,6 +58,7 @@ Definition neighbour_condition I :=
     & AlgoGraph.nb_neighbours G I == Some n].
 
 Definition struct_consistent :=
+  (AlgoGraph.vertex_list G != [::]) &&
   AlgoGraph.vertex_all G (fun I _ => neighbour_condition I).
 
 End Body.
@@ -489,8 +490,9 @@ Qed.
 Lemma eqv_struct_consistent : eqv_graph -> r_Po RatPo BQPo ->
   RatA.struct_consistent n RatPo G1 = BQA.struct_consistent n BQPo G2.
 Proof.
-move=> [eqvtx eqedg] rPo.
+move=> /[dup] eqvg [eqvtx eqedg] rPo.
 rewrite /RatA.struct_consistent /BQA.struct_consistent.
+congr andb; first by rewrite -!size_eq0 (perm_size (perm_eqv_graph eqvg)).
 rewrite (RatG.vertex_all_eq _ (RatG.adj_listP G1)).
 rewrite (BQG.vertex_all_eq _ (BQG.adj_listP G2)) -!all_map.
 rewrite (@eq_all _ (RatA.neighbour_condition n RatPo G1) (BQA.neighbour_condition n BQPo G2)).
@@ -500,7 +502,6 @@ congr andb.
 have perm_nei: perm_eq (RatG.neighbour_list G1 I) (BQG.neighbour_list G2 I).
 + apply/uniq_perm; rewrite ?RatG.uniq_neighbour_list ?BQG.uniq_neighbour_list //.
   by move=> x; rewrite -RatG.edge_mem_list -BQG.edge_mem_list eqedg.
-
 case /boolP: (RatG.mem_vertex G1 I).
 - move/[dup]/[dup] => vtxI1.
   move/(@RatG.neighbour_all_eq _)=> /(_ _ _ (perm_refl _)) ->.  

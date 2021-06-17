@@ -64,10 +64,10 @@ rewrite size_map size_index_list ltn_ord /=.
 by case/(_ isT)/mapP=> x + ->; rewrite ltn_ord.
 Qed.
 
-Lemma fmask_nth_mono (mas : cmask) :
+(* Lemma fmask_nth_mono (mas : cmask) :
   {mono (fmask_nth mas) : x y/ (x < y)%nat}.
 Proof.
-Admitted.
+Admitted. *)
 
 Lemma card_maskF (s : seq bool): ##|s| = 0 -> s = nseq (size s) false.
 Proof.

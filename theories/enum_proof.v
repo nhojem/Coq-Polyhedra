@@ -43,12 +43,6 @@ Section LexiBasis.
 Context (R : realFieldType) (n m : nat).
 Context (base : m.-tuple (plrel n m R)).
 
-(* TODO:
- * - change A / b to lhs / rhs
- * - introduce lhs_mat / rhs_mat
- * - define mask_matrix (now mask_lhs) and mask_aff (now mask_rhs) using rowsub of lhs/rhs_mat by fmask_nth
- * - prove colsub (lift 0) (rhs_mat perturbation base) = 1%:M *)
-
 Lemma mxsub_scalar_mx (p q : nat) (f : 'I_p -> 'I_q) (a : R) :
   injective f -> mxsub f f (a%:M) = a%:M.
 Proof. by move=> f_inj; apply/matrixP=> i j; rewrite !mxE (inj_eq f_inj). Qed.
@@ -172,10 +166,6 @@ Definition lexi_graph :=
   mk_graph [fset L | L : lexi_basis]
     (fun L1 L2 => ##| maskI L1 L2 | == (n-1)%N).
 
-(* TODO: map sur des graphes
-   + lemme d'isomorphisme entre ces graphes *)
-
-
 Definition lexi_mask_graph :=
   (fun x : lexi_basis => x : bitseq) @° lexi_graph.
 
@@ -208,11 +198,16 @@ Definition target_graph := lexi_mask_graph target_Po.
 Hypothesis g_struct : RatA.struct_consistent n target_Po g.
 Hypothesis g_vtx : RatA.vertex_consistent target_Po g.
 
-(* TODO: remove the next 2 hypotheses *)
 Definition computed_graph := mk_graph [fset x | x in RatG.vertex_list g] (RatG.mem_edge g).
-Hypothesis cgraph_neq0 : computed_graph != (graph0 _).
-(* TODO : Mandatory hypothesis ?*)
-(*Hypothesis cgraph_sym : {in (RatG.vertex_list g)&, symmetric (RatG.mem_edge g)}. *)
+
+Lemma cgraph_neq0 : computed_graph != (graph0 _).
+Proof.
+case/andP : g_struct => vtx_list_n0 _.
+apply/graph0Pn; rewrite vtx_mk_graph; apply/fset0Pn.
+move: vtx_list_n0; apply/contra_neq.
+case : (RatG.vertex_list g)=> // ?? /eqP /=.
+by rewrite fset_cons fsetU_eq0 -cardfs_eq0 cardfs1.
+Qed.
 
 Definition low_point k := if RatG.label g k is Some l then l else 0.
 
@@ -223,7 +218,7 @@ Hypothesis k_mem : RatG.mem_vertex g k.
 
 Lemma mem_low_size: size k == m.
 Proof.
-move/RatG.vertex_allP: g_struct=> H.
+case/andP: g_struct => _ /RatG.vertex_allP H.
 case/RatG.vtx_memE: k_mem=> e /H/and4P [].
 by rewrite size_tuple.
 Qed.
@@ -232,7 +227,7 @@ Definition kt := Tuple mem_low_size.
 
 Lemma mem_low_card: ##|kt| == n.
 Proof.
-move/RatG.vertex_allP: g_struct=> H.
+case/andP: g_struct => _ /RatG.vertex_allP H.
 by case/RatG.vtx_memE: k_mem=> e /H/and4P [].
 Qed.
 
@@ -326,7 +321,10 @@ Definition low_prebasis := Lexi low_vbasis.
 
 Lemma low_lexipoint : lexi_point low_prebasis = low_point km.
 Proof.
-Admitted.
+apply: (@row_full_inj _ _ _ _ (mask_lhs target_Po km)).
+- by rewrite row_full_unit extr_low_inv.
+- by rewrite mulKVmx ?extr_low_inv // low_mtx_affP.
+Qed.
 
 Lemma low_presat : all_sat target_Po (lexi_point low_prebasis).
 Proof. by rewrite low_lexipoint mem_low_sat. Qed.
@@ -352,7 +350,7 @@ Section StructCons.
 
 Lemma low_edge x y: RatG.mem_edge g x y -> ##| maskI x y| == (n - 1)%nat.
 Proof.
-move/RatG.vertex_allP: g_struct => vtx_cond.
+  case/andP: g_struct => _ /RatG.vertex_allP vtx_cond.
 rewrite RatG.edge_mem_list => y_nei_x.
 have: RatG.neighbour_list g x != [::] by
   move: y_nei_x; case: (RatG.neighbour_list g x).
@@ -377,7 +375,7 @@ Lemma computed_succ_card :
 Proof.
 move=> x; rewrite vtx_mk_graph inE /= RatG.vtx_mem_list=> /[dup] xg.
 rewrite RatG.vtx_memE => -[e xg_is_e].
-move/RatG.vertex_allP: g_struct => /(_ _ _ xg_is_e).
+case/andP: g_struct => _ /RatG.vertex_allP /(_ _ _ xg_is_e).
 case/and4P=> _ _.
 rewrite (RatG.neighbour_all_eq _ xg (perm_refl _)).
 move/allP=> h_nei.
@@ -411,6 +409,7 @@ exists id; apply: bar => //.
 - exact: edge_target.
 - exact/(giso_connected (lexi_giso _))/lexi_connected.
 - by move=> x xVc; rewrite low_succE //; apply/fsetP=> y; rewrite inE.
+- exact: cgraph_neq0.
 Qed.
 
 Lemma witness : exists x, x \in vertices (lexi_graph target_Po).

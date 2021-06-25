@@ -99,6 +99,14 @@ Proof. exact: MF.IsBindingsP. Qed.
 Lemma uniq_vtx_list (G : t) : uniq (vertex_list G).
 Proof. exact: MF.uniq_keys. Qed.
 
+Lemma empty_vtx_list (G : t) : (is_empty G) = (vertex_list G == [::]).
+Proof.
+apply/idP/idP.
+- by move/MF.is_empty_iff/MF.elements_Empty; rewrite /vertex_list=> ->.
+- rewrite /vertex_list => h; apply/MF.is_empty_iff/MF.elements_Empty.
+  by move: h; case: (Map.elements G).
+Qed.
+
 Lemma vtx_mem_list (G : t) v :
   v \in vertex_list G = mem_vertex G v.
 Proof.

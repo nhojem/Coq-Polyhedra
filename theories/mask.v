@@ -1,4 +1,4 @@
-From mathcomp Require Import all_ssreflect.
+From mathcomp Require Import all_ssreflect finmap.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -9,7 +9,17 @@ Notation "##| p |" := (count id p) (at level 0, p at level 99, format "##| p |")
 Section Mask.
 
 Definition maskI m m' := map (fun x => x.1 && x.2) (zip m m').
+Definition mask_sub (s r : bitseq) :=
+  [forall i : 'I_(size s), nth false s i ==> nth false r i].
 
+Lemma mask_subP (s r : bitseq) :
+  reflect (forall i : 'I_(size s), nth false s i -> nth false r i) (mask_sub s r).
+Proof. apply/forallPP=> ?; exact/implyP. Qed.
+
+Lemma mask_subbb (s r : bitseq) : reflexive mask_sub.
+Proof. by case=> [|a l]; apply/mask_subP=> /= i; rewrite ?nth_nil. Qed.
+
+(* TODO : add notation for mask_sub *)
 End Mask.
 
 Section ChooseMask.
@@ -54,15 +64,17 @@ Proof. by rewrite size_mask ?card_fmask ?size_enum_ord ?size_fmask. Qed.
 Definition fmask_nth_ (mas : cmask) (k : 'I_n) :=
   nth m [seq val i | i <- index_list mas] k.
 
-Program Definition fmask_nth (mas : cmask) (k : 'I_n) :=
-  @Ordinal m (fmask_nth_ mas k) _.
-Next Obligation.
+Lemma fmask_nth_ltn (mas : cmask) (k : 'I_n) : fmask_nth_ mas k < m.
+Proof.
 rewrite /fmask_nth_.
 move: (@mem_nth _ m [seq val i | i <- index_list mas] k).
 set e := nth _ _ _.
 rewrite size_map size_index_list ltn_ord /=.
 by case/(_ isT)/mapP=> x + ->; rewrite ltn_ord.
 Qed.
+
+Definition fmask_nth (mas : cmask) (k : 'I_n) :=
+  Ordinal (fmask_nth_ltn mas k).
 
 (* Lemma fmask_nth_mono (mas : cmask) :
   {mono (fmask_nth mas) : x y/ (x < y)%nat}.
@@ -146,7 +158,41 @@ rewrite /fmask_nth_ ; move/eqP; rewrite nth_uniq ?size_map ?size_index_list //.
 - by rewrite map_inj_uniq; last exact: val_inj; rewrite mask_uniq ?enum_uniq.
 Qed.
 
+Lemma fmask_nth_mask (mas : cmask) i : nth false mas (fmask_nth mas i).
+Proof.
+by apply/index_listP; rewrite -(mem_map val_inj) /= mem_nth ?size_map ?size_index_list.
+Qed.
 
 End ChooseMask.
 
 Notation "m '.-choose' n" := (cmask m n) (at level 0, format "m .-choose  n").
+
+Section ExtractMask.
+
+Context {m n : nat}.
+
+Program Definition extract_fmask (mas : m.-choose n) (k : 'I_n)
+  : m.-choose (n-k-1)%nat :=
+  @CMask _ _
+  (@Tuple _ _
+  (ncons (fmask_nth mas k) false (drop (fmask_nth mas k) mas)) _)
+  _.
+Next Obligation.
+rewrite size_ncons size_drop size_fmask subnKC //.
+exact/ltnW/fmask_nth_ltn.
+Qed.
+Next Obligation. rewrite -cat_nseq count_cat count_nseq add0n.
+rewrite /fmask_nth_ /index_list mask_enum_ord.
+Admitted.
+
+
+Lemma extract_fmask_nth (mas : m.-choose n) (k : 'I_n) :
+  forall i, exists2 j,
+  fmask_nth (extract_fmask mas k) i = fmask_nth mas j
+  & val j = i + k.
+Proof.
+Admitted.
+
+
+
+End ExtractMask.

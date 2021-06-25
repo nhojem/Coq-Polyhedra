@@ -43,23 +43,6 @@ apply/(iffP idP).
 - move=> H; apply/forallP=> x; exact/H/valP.
 Qed.
 
-(* Definition sym fs :=
-  [forall x : finsupp fs,
-      [forall y : finsupp fs,
-          val y \in (odflt fset0 (fs (val x)))
-                    == (val x \in (odflt fset0 (fs (val y)))) ]].
-
-Lemma symP fs :
-  reflect
-	{in finsupp fs&, forall x y, (y \in odflt fset0 (fs x)) = (x \in odflt fset0 (fs y))}
-  (sym fs).
-Proof.
-apply/(iffP idP).
-- move/forallP => Hx x + xfs; move/forallP: (Hx [` xfs])=> Hy y yfs.
-	by move/eqP: (Hy [`yfs]).
-- move=> H; apply/forallP => x; apply/forallP=> y; apply/eqP/H; exact/valP.
-Qed. *)
-
 Record graph :=
   Graph { fs : {fsfun T -> option {fset T} with None};
           _  : codom_sub fs }.
@@ -223,7 +206,6 @@ End GraphBasics.
 Section Connected.
 Context (T : choiceType) (G : graph T).
 
-(*TODO Paramètres src dst plutôt qu'entrées du Record ?*)
 Record gpath := GPath {
   src  : T;
   dst  : T;
@@ -422,30 +404,6 @@ Definition regular := forall v : T, v \in vertices G -> #|` successors G v| = n.
 
 End Regular.
 
-
-(* Section Undirected.
-Context {T : choiceType} (G : graph T).
-Let V := vertices G.
-Definition 
-
-
-Lemma undi_succE : {in V&, forall x y, (x \in successors G y) = (y \in successors G x)}.
-Proof. by move=> ????; rewrite !in_succE edgeC. Qed.
-
-Lemma undi_pathP : {in V&, forall x y, has_path G x y -> has_path G y x}.
-Proof.
-move=> x y xV yV; elim/has_pathW; first exact: has_pathxx.
-move=> S x0 S_path S_vtx Sx0 y0 y0_succ; move: (S_vtx _ Sx0)=> x0_vtx.
-move: (edge_vtxr y0_succ)=> y0_vtx.
-rewrite undi_succE // in_succE in y0_succ.
-move: (has_path_edge y0_succ) (S_path _ Sx0); exact: has_path_trans.
-Qed.
-
-End Undirected. *)
-
-(* TODO: sous-graphe *)
-(* TODO: image d'un graphe *)
-
 Section ImageGraph.
 Context {T1 T2 : choiceType} (G : graph T1) (f : T1 -> T2).
 Let V := vertices G.
@@ -556,7 +514,7 @@ Lemma gisoE: giso <-> exists f,
   {in V1&, forall x y, E1 x y = E2 (f x) (f y)}].
 Proof. split; by case=> f /gisofE ?; exists f. Qed.
 
-Section Foo.
+Section SubGraphIso.
 Context {f : T1 -> T2}.
 Hypothesis f_inj : {in V1&, injective f}.
 Hypothesis f_leq : (f @` V1) `<=` V2.
@@ -567,36 +525,35 @@ Hypothesis G1_neq0 : G1 != (graph0 T1).
 
 (* TODO: move to enum_proof.v *)
 
-
-Lemma foo_has_path : {in V1, forall x, forall y, has_path G2 (f x) y -> y \in f @` V1}.
+Lemma sub_has_path : {in V1, forall x, forall y, has_path G2 (f x) y -> y \in f @` V1}.
 Proof.
 move=> x xV1 y; elim/has_pathW; first exact: in_imfset.
 move=> S x0 S_im S_vtx Sx0 y0; case/imfsetP: (S_im _ Sx0) => /= xO' x0'V1 ->.
 rewrite -G_succ //; move: y0; exact/fsubsetP/subset_imfset/fsubsetP/sub_succ.
 Qed.
 
-Lemma foobar : V2 `<=` f @` V1.
+Lemma sub_vertices : V2 `<=` f @` V1.
 Proof.
 apply/fsubsetP=> x xV2; case/graph0Pn : G1_neq0=> y yV1.
-apply/(foo_has_path yV1)/G2_connected=> //.
+apply/(sub_has_path yV1)/G2_connected=> //.
 by move/fsubsetP: f_leq; apply; rewrite in_imfset.
 Qed.
 
-Lemma barfoo : {in V1&, forall x y, E2 (f x) (f y) -> E1 x y}.
+Lemma sub_edges : {in V1&, forall x y, E2 (f x) (f y) -> E1 x y}.
 Proof.
 move=> x y xV1 yV1; rewrite -[E2 _ _]in_succE -G_succ // -[E1 _ _]in_succE.
 case/imfsetP => y' /= y'_succ /f_inj -> //.
 exact: (edge_vtxr y'_succ).
 Qed.
 
-Lemma bar : gisof f.
+Lemma sub_gisof : gisof f.
 Proof.
-apply/gisofE; split=> //; first by (apply/eqP; rewrite eqEfsubset f_leq foobar).
+apply/gisofE; split=> //; first by (apply/eqP; rewrite eqEfsubset f_leq sub_vertices).
 move=> x y xV1 yV1; apply/idP/idP; first exact: f_morph.
-exact: barfoo.
+exact: sub_edges.
 Qed.
 
-End Foo.
+End SubGraphIso.
 End IsoProofs.
 End GIsomorphism.
 
@@ -782,3 +739,4 @@ exact: f_inj.
 Qed.
 
 End GisoTheory.
+

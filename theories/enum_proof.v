@@ -1,6 +1,6 @@
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 Require Import extra_misc inner_product extra_matrix vector_order.
-Require Import lrel.
+Require Import lrel polyhedron poly_base.
 Require Import mask enum_algo graph high_graph.
 
 Set Implicit Arguments.
@@ -23,7 +23,7 @@ Definition create_perturbation (b : R) (k : 'I_m) : 'rV_(m.+1) :=
 Definition perturbation_seq : seq plrel :=
   map
   (fun x: lrel[R]_n * 'I_m => (x.1.1^T , create_perturbation x.1.2 x.2))
-  (zip base (enum  'I_m)).
+  (zip base (enum 'I_m)).
 
 Program Definition perturbation := @Tuple m _ perturbation_seq _.
 Next Obligation.
@@ -36,7 +36,12 @@ rewrite !nth_zip ?size_enum_ord ?size_tuple //=; congr pair.
 by rewrite nth_ord_enum.
 Qed.
 
+(* Definition zero_pert_seq : seq plrel := [seq (x.1^T , row_mx x.2%:M 0) | x : lrel[R]_n <- base].
+Program Definition zero_pert := @Tuple m _ zero_pert_seq _.
+Next Obligation. Proof. by rewrite size_map size_tuple. Qed. *)
+
 End Perturbation.
+
 
 Section LexiBasis.
 
@@ -69,7 +74,7 @@ Canonical lexipre_finType := FinType _ lexipre_finMixin.
 Lemma lexi_vbasis (L : lexi_prebasis) : basis_of fullv (mask L lhs_base).
 Proof. by case: L => ? /=. Qed.
 
-Definition lhs_mat := \matrix_(i < m) lhs_base`_i.
+Definition lhs_mat := \matrix_(i < m) lhs_base`_i : 'M_(m, n).
 Definition rhs_mat := \matrix_(i < m) rhs_base`_i.
 
 Definition mask_lhs (L : m.-choose n) : 'M_n :=
@@ -97,12 +102,23 @@ Qed.
 Lemma mtx_vbasisE (L : m.-choose n) :
   reflect (basis_of fullv (mask L lhs_base)) (mask_lhs L \in unitmx).
 Proof.
-(*apply/(iffP idP).
-- rewrite -row_full_unit basisEdim size_mask ?size_tuple //.
+rewrite -row_full_unit; apply/(iffP idP).
+- rewrite basisEdim size_mask ?size_tuple //.
   rewrite card_fmask dimvf /Vector.dim /= mul1n leqnn andbT.
-  case/row_fullP => B Bdef; apply/subvP=> x _.
-  Search _ row_full. *)
-Admitted.
+  case/row_fullP => B Bdef; apply/subvP=> /= x _.
+  move/(congr1 (mulmx x)): Bdef; rewrite mulmx1 => <-.
+  rewrite mulmxA mulmx_sum_row.
+  apply: memv_suml => /= i _; apply: memvZ.
+  (* TODO : ugly, need lemma *)
+  by rewrite mask_lhsE memv_span // mem_nth ?size_mask ?card_fmask ?size_fmask ?size_map ?size_tuple.
+- move/span_basis/vspaceP => h_span.
+  rewrite -sub1mx; apply/rV_subP => v _.
+  move: (h_span v); rewrite memvf.
+  have size_n : size (mask L lhs_base) == n by rewrite size_mask ?card_fmask ?size_fmask ?size_map ?size_tuple.
+  have -> : <<mask L lhs_base>>%VS = << Tuple size_n >>%VS by exact/eq_span.
+  move/coord_span => /= ->; apply/summx_sub=> i _; apply/scalemx_sub.
+  by rewrite -mask_lhsE row_sub.
+Qed.
 
 Lemma lexi_matrix_inv (L : lexi_prebasis) : (mask_lhs L) \in unitmx.
 Proof. exact/mtx_vbasisE/lexi_vbasis. Qed.
@@ -120,6 +136,15 @@ Definition sat_mask (mas : bitseq) (x : 'M[R]_(n, m.+1)) :=
 
 Definition eq_mask (mas : bitseq) (x : 'M[R]_(n, m.+1)) :=
   all (fun l => sat_eq l x) (mask mas base).
+
+(* TODO : lex order for matrices by line *)
+Lemma prelexi_sat_point x :
+  all_sat x -> forall i, (row i (lhs_mat *m x)) >=lex (row i rhs_mat).
+Proof.
+move/allP => /= satx i.
+rewrite row_mul !rowK !(nth_map 0) ?size_tuple //.
+by apply/satx/mem_nth; rewrite size_tuple.
+Qed.
 
 Lemma prelexi_mask_point (L : m.-choose n) x :
   eq_mask L x ->
@@ -202,7 +227,7 @@ Definition computed_graph := mk_graph [fset x | x in RatG.vertex_list g] (RatG.m
 
 Lemma cgraph_neq0 : computed_graph != (graph0 _).
 Proof.
-case/andP : g_struct => vtx_list_n0 _.
+case/andP : g_struct; rewrite RatG.empty_vtx_list => vtx_list_n0 _.
 apply/graph0Pn; rewrite vtx_mk_graph; apply/fset0Pn.
 move: vtx_list_n0; apply/contra_neq.
 case : (RatG.vertex_list g)=> // ?? /eqP /=.
@@ -268,7 +293,7 @@ Lemma target_Po_lift : colsub (lift 0) (rhs_mat target_Po) = -1%:M.
 Proof.
 apply/matrixP=> i j /=.
 rewrite !mxE (nth_map 0) ?size_tuple //.
-rewrite /target_Po nth_pert /= -rshift1.
+rewrite nth_pert /= -rshift1.
 by rewrite (@row_mxEr _ 1 1) !mxE eq_refl /= eq_sym.
 Qed.
 
@@ -282,31 +307,6 @@ rewrite inj_eq //; exact/fmask_nth_inj.
 Qed.
 
 Definition extr_low_point := - colsub ((lift 0) \o fmask_nth km) (low_point km).
-
-
-(*rewrite mulmx_colsub low_mtx_affP colsub_comp.
-apply/matrixP=> i j.
-rewrite !mxE -map_mask (nth_map 0) ?size_mask ?card_fmask ?size_fmask ?size_tuple //.
-rewrite -map_mask (nth_map (lrel0, (fmask_nth km i))) ?size_mask ?card_fmask ?size_fmask ?size_zip ?size_enum_ord ?size_tuple ?minnn //=.
-rewrite /create_perturbation.
-Search _ row_mx.*)
-
-(*
-Lemma col_maskP j : (mask_matrix target_Po km) *m (col (fmask_nth km j) (col' 0 (low_point km))) = delta_mx j 0.
-Proof.
-rewrite -col_mul.
-Search _ (col').*)
-
-(* Lemma col_mask_card: ##| col_mask | == n.
-Proof.
-rewrite /col_mask.
-Admitted.
-
-Definition fcol_mask := CMask col_mask_card.
-
-Program Definition extr_low_point :=
-  colsub (fmask_nth fcol_mask) (col' 0 (low_point k)).
-Next Obligation. by rewrite card_ord. Defined. *)
 
 Lemma extr_low_pointE : (mask_lhs target_Po km) *m extr_low_point = 1%:M.
 Proof. by rewrite mulmxN col_maskP opprK. Qed.
@@ -340,13 +340,6 @@ Qed.
 End LowPointIng.
 
 Section StructCons.
-
-(*
-   RatG.mem_vertex g =1 (vertices target_graph)
-/\   RatG.mem_edge g =2 (edges target_graph)
-*)
-
-
 
 Lemma low_edge x y: RatG.mem_edge g x y -> ##| maskI x y| == (n - 1)%nat.
 Proof.
@@ -402,9 +395,9 @@ Qed.
 
 End StructCons.
 
-Lemma foo: giso computed_graph target_graph.
+Lemma target_correctness: giso computed_graph target_graph.
 Proof.
-exists id; apply: bar => //.
+exists id; apply: sub_gisof => //.
 - apply/fsubsetP=> x; rewrite in_fsetE /= vtx_mk_graph in_fsetE /= RatG.vtx_mem_list; exact: mem_foo.
 - exact: edge_target.
 - exact/(giso_connected (lexi_giso _))/lexi_connected.
@@ -421,11 +414,56 @@ Qed.
 
 Lemma correctness : giso computed_graph (lexi_graph target_Po).
 Proof.
-apply/(giso_trans foo)/(giso_sym (xchoose witness)); last exact:lexi_giso.
+apply/(giso_trans target_correctness)/(giso_sym (xchoose witness)); last exact:lexi_giso.
 Qed.
 
-
 End RelGraph.
+
+Section VtxGraph.
+
+
+Let n := RatP.n.
+Let m := RatP.m.
+Context (base : m.-tuple lrel[rat]_n).
+Context (fmask_max : {fset m.-choose n} -> m.-choose n).
+Hypothesis fmask_max_mem : forall S, fmask_max S \in S.
+
+Definition pert_Po := perturbation base.
+Definition pert_mask_graph := lexi_graph pert_Po.
+
+Definition mat_lhs : 'M_(m,n) := \matrix_(i < m) (base`_i).1^T.
+Definition mat_rhs : 'cV_m := \col_(i < m) (base`_i).2.
+
+Definition Pbase : base_t := [fset x in val base].
+
+Definition active_ineq_mask x : bitseq := [seq x \in [hp e]%PH | e <- base].
+
+Definition active_ineq_chooses x :=
+  [fset l : m.-choose n | mask_sub l (active_ineq_mask x)].
+
+Definition lhs_mask (l : m.-choose n):= rowsub (fmask_nth l) mat_lhs.
+Definition rhs_mask (l : m.-choose n):= rowsub (fmask_nth l) mat_rhs. 
+
+Definition active_ineq_lexibasis x :=
+    [fset l in active_ineq_chooses x | lhs_mask l \in unitmx]. 
+
+Lemma active_ineq_maskE x l : l \in active_ineq_lexibasis x ->
+  (rowsub (fmask_nth l) mat_lhs) *m x = (rowsub (fmask_nth l) mat_rhs) .
+Proof.
+(* case/imfsetP=> /= mas; rewrite !inE -andbA => /and3P [_ ].
+rewrite /active_ineq_mask /= => /mask_subP + + E.
+rewrite {}E size_fmask => h_sub h_inv; apply/row_matrixP=> i.
+rewrite row_mul !row_rowsub.
+set j := fmask_nth _ _.
+move: (h_sub j); rewrite fmask_nth_mask -fmask_nthP /=.
+Admitted. *)
+Admitted.
+
+Definition active_ineq_span x := <<mask (active_ineq_mask x) base>>%VS.
+Definition active_ineq_maxbasis x := fmask_max (active_ineq_lexibasis x).
+
+End VtxGraph.
+
 
 
 

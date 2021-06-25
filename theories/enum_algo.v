@@ -58,7 +58,7 @@ Definition neighbour_condition I :=
     & AlgoGraph.nb_neighbours G I == Some n].
 
 Definition struct_consistent :=
-  (AlgoGraph.vertex_list G != [::]) &&
+  (~~ AlgoGraph.is_empty G) &&
   AlgoGraph.vertex_all G (fun I _ => neighbour_condition I).
 
 End Body.
@@ -492,7 +492,8 @@ Lemma eqv_struct_consistent : eqv_graph -> r_Po RatPo BQPo ->
 Proof.
 move=> /[dup] eqvg [eqvtx eqedg] rPo.
 rewrite /RatA.struct_consistent /BQA.struct_consistent.
-congr andb; first by rewrite -!size_eq0 (perm_size (perm_eqv_graph eqvg)).
+congr andb.
+  - by rewrite RatG.empty_vtx_list BQG.empty_vtx_list -!size_eq0 (perm_size (perm_eqv_graph eqvg)).
 rewrite (RatG.vertex_all_eq _ (RatG.adj_listP G1)).
 rewrite (BQG.vertex_all_eq _ (BQG.adj_listP G2)) -!all_map.
 rewrite (@eq_all _ (RatA.neighbour_condition n RatPo G1) (BQA.neighbour_condition n BQPo G2)).

@@ -586,7 +586,7 @@ Definition m : nat := 6%N.
 Definition n : nat := 3%N.
 
 Definition v_data_0000 : seq (bitseq * (seq (seq bigQ))) := [::
-   ([:: false; false; false; true; true; true], [::
+   ([:: false; false; false; true; true; true], [:: 
   [:: 1; 1; 1 ]
 ; [:: 0; 0; 0 ]
 ; [:: 0; 0; 0 ]
@@ -595,7 +595,7 @@ Definition v_data_0000 : seq (bitseq * (seq (seq bigQ))) := [::
 ; [:: 0; 0; 1 ]
 ; [:: 0; 1; 0 ]
 ])
-;  ([:: true; false; false; false; true; true], [::
+;  ([:: true; false; false; false; true; true], [:: 
   [:: -1; 1; 1 ]
 ; [:: -1; 0; 0 ]
 ; [:: 0; 0; 0 ]
@@ -604,7 +604,7 @@ Definition v_data_0000 : seq (bitseq * (seq (seq bigQ))) := [::
 ; [:: 0; 0; 1 ]
 ; [:: 0; 1; 0 ]
 ])
-;  ([:: false; false; true; true; false; true], [::
+;  ([:: false; false; true; true; false; true], [:: 
   [:: 1; 1; -1 ]
 ; [:: 0; 0; 0 ]
 ; [:: 0; 0; 0 ]
@@ -613,7 +613,7 @@ Definition v_data_0000 : seq (bitseq * (seq (seq bigQ))) := [::
 ; [:: 0; 0; 0 ]
 ; [:: 0; 1; 0 ]
 ])
-;  ([:: true; false; true; false; false; true], [::
+;  ([:: true; false; true; false; false; true], [:: 
   [:: -1; 1; -1 ]
 ; [:: -1; 0; 0 ]
 ; [:: 0; 0; 0 ]
@@ -622,7 +622,7 @@ Definition v_data_0000 : seq (bitseq * (seq (seq bigQ))) := [::
 ; [:: 0; 0; 0 ]
 ; [:: 0; 1; 0 ]
 ])
-;  ([:: false; true; true; true; false; false], [::
+;  ([:: false; true; true; true; false; false], [:: 
   [:: 1; -1; -1 ]
 ; [:: 0; 0; 0 ]
 ; [:: 0; -1; 0 ]
@@ -631,7 +631,7 @@ Definition v_data_0000 : seq (bitseq * (seq (seq bigQ))) := [::
 ; [:: 0; 0; 0 ]
 ; [:: 0; 0; 0 ]
 ])
-;  ([:: true; true; true; false; false; false], [::
+;  ([:: true; true; true; false; false; false], [:: 
   [:: -1; -1; -1 ]
 ; [:: -1; 0; 0 ]
 ; [:: 0; -1; 0 ]
@@ -640,7 +640,7 @@ Definition v_data_0000 : seq (bitseq * (seq (seq bigQ))) := [::
 ; [:: 0; 0; 0 ]
 ; [:: 0; 0; 0 ]
 ])
-;  ([:: false; true; false; true; true; false], [::
+;  ([:: false; true; false; true; true; false], [:: 
   [:: 1; -1; 1 ]
 ; [:: 0; 0; 0 ]
 ; [:: 0; -1; 0 ]
@@ -649,7 +649,7 @@ Definition v_data_0000 : seq (bitseq * (seq (seq bigQ))) := [::
 ; [:: 0; 0; 1 ]
 ; [:: 0; 0; 0 ]
 ])
-;  ([:: true; true; false; false; true; false], [::
+;  ([:: true; true; false; false; true; false], [:: 
   [:: -1; -1; 1 ]
 ; [:: -1; 0; 0 ]
 ; [:: 0; -1; 0 ]
@@ -675,20 +675,25 @@ Definition e_data_0000 : seq (bitseq * bitseq) := [::
 ; ([:: true; true; false; false; true; false], [:: true; true; true; false; false; false])
 ].
 
-Definition G := Eval native_compute in BigQAlgorithm.AlgoGraph.empty.
+Definition G := BigQAlgorithm.AlgoGraph.empty.
+Definition G_0 :=  BigQAlgorithm.AlgoGraph.add_vertices G v_data_0000.
+Definition H_0 := BigQAlgorithm.AlgoGraph.add_edges G_0 e_data_0000.
+Definition input := H_0.
 
+Eval vm_compute in BQA.vertex_consistent Po input.
+Eval vm_compute in
+  BQA.sat_Po Po
+  [:: 
+  [:: 1; 1; 1 ]
+; [:: 0; 0; 0 ]
+; [:: 0; 0; 0 ]
+; [:: 0; 0; 0 ]
+; [:: 1; 0; 0 ]
+; [:: 0; 0; 1 ]
+; [:: 0; 1; 0 ]
+  ].
 
-Definition G_0 :=  Eval native_compute in BigQAlgorithm.AlgoGraph.add_vertices v_data_0000 G.
-Definition H_0 := BigQAlgorithm.AlgoGraph.add_edges e_data_0000 G_0.
-Definition input := Eval native_compute in H_0.
-
-Definition vtx_output :=
-  Eval native_compute in bigQ_vtx_consistent Po input.
 
 Definition struct_output :=
-    Eval native_compute in bigQ_struct_consistent n input.
+    Eval native_compute in BQA.struct_consistent n Po input. *)
 
-Print vtx_output.
-Print struct_output.
-
-End TestExtract. *)

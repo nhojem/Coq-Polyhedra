@@ -39,7 +39,7 @@ Unset Printing Implicit Defensive.
 JOB = r'''
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq.
 From Bignums  Require Import BigQ BigN.
-(* ------- *) Require Import enumeration.
+(* ------- *) Require Import enum_algo.
 
 Set   Implicit Arguments.
 Unset Strict Implicit.
@@ -48,10 +48,10 @@ Unset Printing Implicit Defensive.
 Require Import data_ine list_data.
 
 Definition vtx_output :=
-  Eval native_compute in bigQ_vtx_consistent Po input.
+  Eval native_compute in BQA.vertex_consistent Po input.
 
 Definition struct_output :=
-    Eval native_compute in bigQ_struct_consistent n input.
+    Eval native_compute in BQA.struct_consistent n Po input.
 
 Print vtx_output.
 Print struct_output.
@@ -60,7 +60,7 @@ Print struct_output.
 LIST_DATA = r'''
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq.
 From Bignums  Require Import BigQ BigN.
-(* ------- *) Require Import enumeration.
+(* ------- *) Require Import enum_algo.
 
 Set   Implicit Arguments.
 Unset Strict Implicit.
@@ -159,7 +159,7 @@ def extract(name):
     
     m = len(Po_aux)
     n = len(Po_aux[0]) - 1
-    Po = [([line[0]] + [1 if k == i else 0 for k in range(m)],[-x for x in line[1:]]) for i,line in enumerate(Po_aux)]
+    Po = [([-line[0]] + [1 if k == i else 0 for k in range(m)],[x for x in line[1:]]) for i,line in enumerate(Po_aux)]
     vertices_aux = [(data[i], data[i+1]) for i in range(0, len(data), 2)]
     vertices = []
     for (ma, x) in tqdm(vertices_aux, "Calcul des bases lexicographiquement admissibles"):
@@ -272,15 +272,15 @@ def output(name, m, n, Po, vertices):
         for t in range(index_v + 1):
             fname = '%s_%.4d' % (FNAME, t)
             if t == 0:
-                print(f'Definition G_{t} :=  BigQAlgorithm.AlgoGraph.add_vertices v_{fname} G.',file=stream)
+                print(f'Definition G_{t} :=  BigQAlgorithm.AlgoGraph.add_vertices G v_{fname}.',file=stream)
             else:
-                print(f'Definition G_{t} :=  BigQAlgorithm.AlgoGraph.add_vertices v_{fname} G_{t-1}.',file=stream)
+                print(f'Definition G_{t} :=  BigQAlgorithm.AlgoGraph.add_vertices G_{t-1} v_{fname}.',file=stream)
         for t in range(index_e + 1):
             fname = '%s_%.4d' % (FNAME, t)
             if t == 0:
-                print(f'Definition H_{t} := BigQAlgorithm.AlgoGraph.add_edges e_{fname} G_{index_v}.',file=stream)
+                print(f'Definition H_{t} := BigQAlgorithm.AlgoGraph.add_edges G_{index_v} e_{fname}.',file=stream)
             else:
-                print(f'Definition H_{t} := BigQAlgorithm.AlgoGraph.add_edges e_{fname} H_{t-1}.',file=stream)
+                print(f'Definition H_{t} := BigQAlgorithm.AlgoGraph.add_edges H_{t-1} e_{fname}.',file=stream)
         print(f'Definition input := H_{index_e}.', file=stream)
 
         
@@ -288,15 +288,27 @@ def output(name, m, n, Po, vertices):
     with open(_x('job.v'), 'w') as stream:
         stream.write(JOB)
 
-    shutil.copy2(os.path.join(ROOT, 'enumeration.v'), name)
+    shutil.copy2(os.path.join(ROOT, 'enum_algo.v'), name)
     shutil.copy2(os.path.join(ROOT, 'graph.v'), name)
     shutil.copy2(os.path.join(ROOT, 'MapFold.v'), name)
+    shutil.copy2(os.path.join(ROOT, 'high_graph.v'), name)
+    shutil.copy2(os.path.join(ROOT, 'extra_misc.v'), name)
+    shutil.copy2(os.path.join(ROOT, 'inner_product.v'), name)
+    shutil.copy2(os.path.join(ROOT, 'vector_order.v'), name)
+    shutil.copy2(os.path.join(ROOT, 'mask.v'), name)
+    shutil.copy2(os.path.join(ROOT, 'extra_matrix.v'), name)
 
     with open(_x('_CoqProject'), 'w') as stream:
         print(COQPROJECT_PRELUDE, file=stream)
         print('MapFold.v', file=stream)
+        print('high_graph.v', file=stream)
         print('graph.v', file=stream)
-        print('enumeration.v', file=stream)
+        print('extra_misc.v', file=stream)
+        print('extra_matrix.v', file=stream)
+        print('inner_product.v', file=stream)
+        print('vector_order.v', file=stream)
+        print('mask.v', file=stream)
+        print('enum_algo.v', file=stream)
         print('%s_ine.v' % (FNAME,), file=stream)
         for t in range(index_v + 1):
             fname = '%s_%.4d' % (FNAME, t)

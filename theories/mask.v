@@ -163,9 +163,52 @@ Proof.
 by apply/index_listP; rewrite -(mem_map val_inj) /= mem_nth ?size_map ?size_index_list.
 Qed.
 
+(* Lemma fmask_nth_take (mas : cmask) i :
+  ##| take (fmask_nth mas i).+1 mas | = i.+1.
+Proof.
+Admitted.
+rewrite /fmask_nth /= /fmask_nth_.
+rewrite map_mask.
+case: mas => -[] mas /= /eqP + /eqP.
+elim: mas m n i=> /= [|a l IH].
+- by move=> p q i _ n0; move: (ltn_ord i); rewrite -{2}n0 ltn0.
+- move=> p q i size_l; rewrite -size_l enum_ordS /=.
+  case: a=> /=.
+  + rewrite !add1n; case: q i => // q i.
+    move/succn_inj=> card_l.
+    move: (IH (p.-1) q); rewrite -size_l card_l -pred_Sn. *)
+
+
 End ChooseMask.
 
 Notation "m '.-choose' n" := (cmask m n) (at level 0, format "m .-choose  n").
+
+Section Ind.
+
+Lemma bitseq_ind (P : bitseq -> Type) :
+  (forall n, P (nseq n false)) ->
+  (forall g d, ##|g| == 1 -> P d -> P (g ++ d)) ->
+  forall s, P s.
+Proof.
+move=> P0 P_ind s.
+move: {2}##|s| (erefl ##|s|) => n.
+elim: n s.
+- move=> ? /card_maskF ->; exact: P0.
+- move=> n IH s card_s.
+  move: (has_count id s); rewrite card_s ltn0Sn => has_s.
+  move: card_s IH; case/split_find: has_s.
+  move=> x s1 s2 ->.
+  rewrite -all_predC all_count -(count_predC id) eq_sym.
+  move/eqP/(congr1 (subn^~ (count (predC id) s1))).
+  rewrite addnK subnn => card_s1 card_s IH.
+  have/IH: ##|s2| = n.
+  + move: card_s; rewrite -cats1 !count_cat /= card_s1 addn0 add0n add1n.
+    exact: succn_inj.
+  by apply: P_ind; rewrite -cats1 count_cat /= card_s1 add0n addn0.
+Qed.
+
+
+End Ind.
 
 Section ExtractMask.
 

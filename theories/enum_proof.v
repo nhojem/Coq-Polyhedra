@@ -36,11 +36,54 @@ rewrite !nth_zip ?size_enum_ord ?size_tuple //=; congr pair.
 by rewrite nth_ord_enum.
 Qed.
 
+Definition unpert_ (x : plrel) : lrel[R]_n := [<x.1^T, x.2 0 0>].
+
+Lemma unpert_lin : linear unpert_.
+Proof.
+move=> a /= u v; rewrite /unpert_ /= !mxE trmx_add.
+by rewrite lrel_addE trmx_mul_scalar.
+Qed.
+
+Definition unpert := (linfun (Linear unpert_lin)).
+
+Lemma unpertE e x k : unpert (e, create_perturbation x k) = [<e^T, x>].
+Proof.
+rewrite lfunE /= /unpert_ /create_perturbation.
+rewrite mxE; case: splitP=> //= j.
+by rewrite (ord1_eq0 j) mxE /=.
+Qed.
+
+
+Lemma unpert_seq : [seq unpert y | y <- perturbation] = base.
+Proof.
+rewrite /perturbation /= /perturbation_seq.
+rewrite -map_comp.
+have H: [eta unpert] \o
+  (fun x : lrel_ n * 'I_m => (x.1.1^T, create_perturbation x.1.2 x.2))
+  =1 fst.
+  by move=> x /=; rewrite unpertE trmxK lrelE.
+by rewrite (eq_map H) -/unzip1 unzip1_zip // size_enum_ord size_tuple.
+Qed.
+
+Lemma unpert0_fst x : unpert x = 0 -> x.1 = 0.
+Proof.
+rewrite lfunE.
+move/(congr1 val)=> /=.
+case/pair_equal_spec => /(congr1 trmx).
+by rewrite trmxK trmx0.
+Qed.
+
+Lemma unpert0_snd x : unpert x = 0 -> x.2 0 0 = 0.
+Proof. by rewrite lfunE; move/(congr1 val); case/pair_equal_spec. Qed.
+
 (* Definition zero_pert_seq : seq plrel := [seq (x.1^T , row_mx x.2%:M 0) | x : lrel[R]_n <- base].
 Program Definition zero_pert := @Tuple m _ zero_pert_seq _.
 Next Obligation. Proof. by rewrite size_map size_tuple. Qed. *)
 
 End Perturbation.
+
+Arguments unpert {_ _ _}.
+
 
 
 Section LexiBasis.
@@ -421,46 +464,203 @@ End RelGraph.
 
 Section VtxGraph.
 
-
-Let n := RatP.n.
-Let m := RatP.m.
-Context (base : m.-tuple lrel[rat]_n).
-Context (fmask_max : {fset m.-choose n} -> m.-choose n).
-Hypothesis fmask_max_mem : forall S, fmask_max S \in S.
+Context {n m : nat} {R : realFieldType}.
+Context (base : m.-tuple lrel[R]_n).
 
 Definition pert_Po := perturbation base.
 Definition pert_mask_graph := lexi_graph pert_Po.
 
 Definition mat_lhs : 'M_(m,n) := \matrix_(i < m) (base`_i).1^T.
 Definition mat_rhs : 'cV_m := \col_(i < m) (base`_i).2.
+Definition lhs_mask {k : nat} (l : m.-choose k) :=
+  rowsub (fmask_nth l) mat_lhs.
+Definition rhs_mask {k : nat} (l : m.-choose k) :=
+  rowsub (fmask_nth l) mat_rhs.
 
 Definition Pbase : base_t := [fset x in val base].
 
-Definition active_ineq_mask x : bitseq := [seq x \in [hp e]%PH | e <- base].
 
-Definition active_ineq_chooses x :=
-  [fset l : m.-choose n | mask_sub l (active_ineq_mask x)].
 
-Definition lhs_mask (l : m.-choose n):= rowsub (fmask_nth l) mat_lhs.
-Definition rhs_mask (l : m.-choose n):= rowsub (fmask_nth l) mat_rhs. 
 
-Definition active_ineq_lexibasis x :=
-    [fset l in active_ineq_chooses x | lhs_mask l \in unitmx]. 
+Inductive pert_lex (p q : nat) : seq (plrel p q R) -> Prop :=
+  | NilPertLex : pert_lex [::]
+  | ConsPertLex x l (_ : pert_lex l)
+    (_ : forall y, y \in <<unzip2 l>>%VS -> (col' 0 x.2) <lex (col' 0 y)) :
+    pert_lex (x::l).
 
-Lemma active_ineq_maskE x l : l \in active_ineq_lexibasis x ->
-  (rowsub (fmask_nth l) mat_lhs) *m x = (rowsub (fmask_nth l) mat_rhs) .
+Lemma pert_lexP (p q : nat) : forall s : p.-tuple lrel[R]_q, pert_lex (perturbation s).
 Proof.
-(* case/imfsetP=> /= mas; rewrite !inE -andbA => /and3P [_ ].
-rewrite /active_ineq_mask /= => /mask_subP + + E.
-rewrite {}E size_fmask => h_sub h_inv; apply/row_matrixP=> i.
-rewrite row_mul !row_rowsub.
-set j := fmask_nth _ _.
-move: (h_sub j); rewrite fmask_nth_mask -fmask_nthP /=.
-Admitted. *)
+rewrite /perturbation /= /perturbation_seq.
+elim: p=> /=.
+- move=> s0; rewrite (tuple0 s0) /=.
+  case: (enum _)=> [|_ _] /=; exact: NilPertLex.
+- move=> p IH; rewrite enum_ordS.
+  case/tupleP => /= y s.
+  apply: ConsPertLex.
+  + admit.
+  + admit.
 Admitted.
 
-Definition active_ineq_span x := <<mask (active_ineq_mask x) base>>%VS.
-Definition active_ineq_maxbasis x := fmask_max (active_ineq_lexibasis x).
+Lemma pert_lex_Po : pert_lex pert_Po.
+Proof. exact: pert_lexP. Qed.
+
+(* Derive Inversion_clear pert_lex_cons with
+  (forall (p q : nat) e (S : seq (plrel p q R)), pert_lex (e :: S))
+  Sort Prop.
+Check pert_lex_cons. *)
+
+Lemma pert_lex_cons {p q : nat} e (S : seq (plrel p q R)) :
+  pert_lex (e :: S) -> 
+  (forall y, y \in <<unzip2 S>>%VS -> (col' 0 e.2) <lex (col' 0 y)) /\
+  pert_lex S.
+Proof.
+by inversion 1.
+Qed.
+
+Lemma pert_lex0 {p q : nat} (S : seq (plrel p q R)) x :
+  pert_lex S -> x \in S -> (col' 0 x.2) <lex 0.
+Proof.
+elim=> // a l _ IH span_lex.
+rewrite inE; case/orP; last exact: IH.
+move/eqP => ->; move: (span_lex 0).
+by rewrite mem0v col'_const; apply.
+Qed.
+
+(* set l := _ :: _.
+have ->: S = behead l by [].
+have ->: e = head v l by [].
+case => //.
+split; last exact: NilPertLex.
+rewrite span_nil=> y; rewrite memv0=> /eqP -> /=.
+rewrite col'_const; apply/v0/p. (*TODO : why ?*)
+Qed. *)
+
+Inductive is_perturbated {p q : nat} :
+  seq lrel[R]_q -> seq (plrel q p R) -> Prop :=
+  | NilPert : is_perturbated [::] [::]
+  | ConsPert (x : lrel[R]_q) (y : (plrel q p R)) S S'
+      of x = unpert y & is_perturbated S S' :
+      is_perturbated (x::S) (y::S').
+
+Lemma is_perturbatedP {p q : nat} (S : p.-tuple lrel[R]_q):
+  is_perturbated S (perturbation S).
+Proof.
+rewrite /perturbation /perturbation_seq /=.
+case: S=> /= S sizeS. rewrite -(size_enum_ord p) in sizeS.
+move: (enum 'I_p) sizeS; elim: S=> [|Sa Sl IH].
+- case=> //= _; exact: NilPert.
+- case=> //= ord_a ord_l /eqP /succn_inj /eqP ?.
+  apply: ConsPert; rewrite ?unpertE ?trmxK ?lrelE //.
+  exact: IH.
+Qed.
+
+Lemma is_pert_unpert {p q : nat}
+  (S : seq lrel[R]_q) (S' : seq (plrel q p R)) x:
+  is_perturbated S S' -> x \in S' -> unpert x \in S.
+Proof.
+elim=> // a a' S0 S0' -> _ IH.
+rewrite !inE; case/orP; first by (move/eqP=> ->; rewrite eq_refl).
+by move/IH => ->; rewrite orbT.
+Qed.
+
+
+Lemma ltrlex_bar {p : nat} (x y : 'rV[R]_(p.+1)) :
+  x <lex y = (x 0 0 < y 0 0) ||
+    ((x 0 0 == y 0 0) && ((col' 0 x) <lex (col' 0 y))).
+Proof.
+Admitted.
+
+Lemma foo {p q : nat}
+  (S : seq lrel[R]_q) (S' : seq (plrel q p R)):
+  is_perturbated S S' ->
+  forall s' Z,
+  is_span_gen [seq unpert e | e <- s'] S ->
+  subseq s' S' -> pert_lex S' ->
+  uniq S ->
+  all (fun e => (e.1 *m Z) == e.2) s' ->
+  all (fun e : lrel[R]_q => e.1^T *m (col 0 Z) == e.2%:M) S ->
+  forall e, e \in S' -> e \notin s' ->  (e.2) <lex (e.1 *m Z).
+Proof.
+elim => // e e' T T' -> is_pert0 IH s' Z.
+case: s'=> //=.
++ move/is_span_gen0=> /= S0_is0 _ pert_lexS' _ _.
+  case/andP=> e'_sat S0_sat.
+  move=> a' a'_S' _.
+  have /S0_is0: unpert a' \in unpert e' :: T.
+  - move: a'_S'; rewrite !inE.
+    case/orP; first by (move/eqP => ->; rewrite eq_refl).
+    by move/(is_pert_unpert is_pert0) => ->; rewrite orbT.
+  move/[dup]/unpert0_fst => -> /unpert0_snd a'_snd0.
+  rewrite mul0mx ltrlex_bar; apply/orP; right.
+  rewrite a'_snd0 mxE eq_refl /= col'_const.
+  by move: (pert_lex0 pert_lexS' a'_S').
++ move=> h' t'.
+  case/boolP : (h' == e').
+  - move/eqP=> -> is_span_genS sub0.
+    case/pert_lex_cons=> H_e' pert_lexS0'.
+    case/andP=> [e'_n_S0 uniqS0].
+    case/andP=> e'1Z s0'Z.
+    case/andP=> e'colZ S0col a'.
+    rewrite !inE negb_or.
+    case/orP; first by move=> ->.
+    move=> a'_S0' /andP [? a'_n_s0'].
+    apply: (IH t' Z)=> //.
+    exact: (is_span_gen_eqcons is_span_genS).
+  - move=> h'_n_e' is_span_genS sub_s'.
+    case/pert_lex_cons => e'_lex pert_lexT'.
+    case/andP=> e_n_T uniqT s'Z.
+    case/andP=> e'colZ TcolZ.
+    move=> a'; rewrite inE.
+    case/orP.
+    + move/eqP => -> e'_n_s'.
+      rewrite ltrlex_bar; apply/orP; right.
+      apply/andP; split.
+      - move/eqP/matrixP/(_ 0 0): e'colZ.
+        rewrite lfunE trmxK -col_mul colEsub mxE /= => ->.
+        by rewrite mxE eqxx mulr1n.
+      - apply: e'_lex.
+        admit.
+    + apply: IH=> //=.
+      admit.
+Admitted.
+
+  
+
+Context (x : 'cV[R]_n).
+Hypothesis xPo : x \in 'P(Pbase)%PH.
+
+Definition active_ineq_seq := [seq e <- base | x \in [hp e]%PH].
+Definition active_space := <<active_ineq_seq>>%VS.
+Definition active_dim := \dim active_space.
+
+Definition active_basis := span_gen active_ineq_seq.
+
+Lemma active_basisP : is_span_gen active_basis active_ineq_seq.
+Proof. exact: span_genP. Qed.
+
+
+(* Lemma rk_mat_max : \rank mat_max = active_dim.
+Proof.
+Admitted.
+
+Lemma mat_max_pinv : mat_max *m mat_max^T \in unitmx.
+Proof.
+Admitted.
+
+Definition Z_max :=
+  mat_max^T *m invmx (mat_max *m mat_max^T) *m
+  rowsub (fmask_nth active_max) (-1%:M).
+
+Lemma Z_max_sol i : i \in codom (fmask_nth active_max) ->
+  row i (mat_lhs *m Z_max) = - delta_mx 0 i.
+Proof.
+case/codomP=> /= i' ->.
+rewrite row_mul -row_rowsub -row_mul !mulmxA mulmxV ?mat_max_pinv //.
+rewrite mul1mx row_rowsub.
+by apply/rowP=> j; rewrite !mxE /= eq_sym.
+Qed. *)
+
+
 
 End VtxGraph.
 

@@ -975,6 +975,9 @@ Proof.
 elim: E B s=> [|hE tE IH]//.
   by move=> B s [_ + _]; rewrite subseq0 => /eqP -> /is_sg_nil ->.
 move=> B s [base_b sub_b drop_b] /is_sg_inv [].
+(*Si on a ajouté hE dans la base s,
+  alors on montre que B = hE :: B',
+  puis que B' vérifie l'hypothèse d'induction*)
 - case=> -> /= span_s hE_n_span.
   have hE_B: hE \in B.
   + apply: contraT=> hE_n_B; move: (drop_b 0%nat hE_n_B)=> /=.
@@ -1014,6 +1017,11 @@ move=> B s [base_b sub_b drop_b] /is_sg_inv [].
     rewrite y_drop andbT; case/orP=> //.
     move: y_drop=> /mem_drop /(nthP 0) [j _ <-].
     by move/negPf: (hE_tE_nth j) => ->.
+(*  Si hE a été exclu de la base s,
+    alors on montre que ça ne peut pas être
+    l'élément de tête de B,
+    et on applique l'hypothèse d'induction à B tout entier
+*)
 - case=> hE_span span_s; apply/IH=> //.
   have span_eq : <<tE>>%VS = <<hE :: tE>>%VS.
   + apply/eqP.
@@ -1032,7 +1040,10 @@ move=> B s [base_b sub_b drop_b] /is_sg_inv [].
     move: (base_b); rewrite -span_eq; move/basis_free; rewrite free_cons.
     case/andP => /negPf <- _.
     admit.
-    (*TODO : problème dans la définition de drop_b, nouvelle définition à choisir*)
+    (*
+    TODO : problème dans la définition de drop_b,
+    nouvelle définition à choisir
+    *)
   + by move=> i tEi_B'; move: (drop_b i.+1 tEi_B').
 Admitted.
 
